@@ -16,20 +16,19 @@ Stack: Flutter 3.24 / Dart 3.3 · Material 3 · Riverpod · Drift · Freezed · 
 ## Architecture
 
 ```
-Presentation  ──reads/writes──►  Domain  ◄──implements──  Data
-(Riverpod                        Models                    (Drift
- Pages/Widgets)                  + Interfaces              SQLite)
+Features              ──depends on──►  Core
+(Todos feature)                        (Theme, DB,
+ Presentation/Domain/Data)             Providers)
 ```
 
-DDD concepts applied:
+Architecture: **Feature-first**. Code is grouped by feature rather than technical layer.
 
-| Concept | File |
-|---------|------|
-| Aggregate Root | `lib/domain/models/todo.dart` — `Todo` (freezed) |
-| Value Objects | `TodoPriority`, `TodoFilter` (enums) |
-| Repository Port | `lib/domain/repositories/i_todo_repository.dart` |
-| Repository Adapter | `lib/data/repositories/todo_repository_impl.dart` |
-| Use Cases | Inline in `TodoActions` Riverpod notifier |
+| Layer | Path |
+|-------|------|
+| Presentation | `lib/features/todos/presentation/` |
+| Domain | `lib/features/todos/domain/` |
+| Data | `lib/features/todos/data/` |
+| Core | `lib/core/` |
 
 ---
 
@@ -37,6 +36,7 @@ DDD concepts applied:
 
 ```
 F:\may\todo\
+├── .gemini/settings.json                     MCP server config
 ├── pubspec.yaml                              deps
 ├── analysis_options.yaml                     strict lints + riverpod_lint
 ├── setup.ps1                                 ONE-TIME first-run script
@@ -46,28 +46,40 @@ F:\may\todo\
 │   ├── app.dart                              MaterialApp.router + theme watch
 │   ├── router/app_router.dart                GoRouter: / /todo/new /todo/edit/:id
 │   ├── core/
+│   │   ├── data/local/app_database.dart      Drift DB singleton
 │   │   ├── theme/app_colors.dart             brand + priority color tokens
 │   │   ├── theme/app_theme.dart              Material 3 light + dark themes
 │   │   └── providers/theme_provider.dart     ThemeMode persisted to SharedPrefs
-│   ├── domain/
-│   │   ├── models/todo.dart                  Todo (freezed), TodoPriority, TodoFilter
-│   │   └── repositories/i_todo_repository.dart  abstract interface
-│   ├── data/
-│   │   ├── local/app_database.dart           Drift DB, Todos table, CRUD + streams
-│   │   └── repositories/todo_repository_impl.dart  domain ↔ drift mapping
-│   └── presentation/
-│       ├── providers/database_provider.dart  appDatabase + todoRepository (keepAlive)
-│       ├── providers/todo_provider.dart      todoStream (StreamProvider) + TodoActions
-│       ├── pages/home_page.dart              list + filter chips + search + FAB
-│       ├── pages/todo_form_page.dart         create / edit / delete form
-│       └── widgets/
-│           ├── todo_tile.dart                swipe-delete, priority dot, animations
-│           ├── filter_bar.dart               All/Active/Done FilterChips
-│           └── empty_state.dart              contextual per-filter empty state
+│   ├── features/todos/
+│   │   ├── domain/
+│   │   │   ├── models/todo.dart              Todo (freezed), TodoPriority, TodoFilter
+│   │   │   └── repositories/i_todo_repository.dart  abstract interface
+│   │   ├── data/
+│   │   │   └── repositories/todo_repository_impl.dart  domain ↔ drift mapping
+│   │   └── presentation/
+│   │       ├── providers/database_provider.dart  todoRepository (keepAlive)
+│   │       ├── providers/todo_provider.dart      todoStream (StreamProvider) + TodoActions
+│   │       ├── pages/home_page.dart              list + filter chips + search + FAB
+│   │       ├── pages/todo_form_page.dart         create / edit / delete form
+│   │       └── widgets/                          todo_tile, filter_bar, empty_state
+│   └── services/                             audio, patterns (shared services)
 └── test/
     ├── domain/todo_test.dart                 Todo model: defaults, copyWith, equality
     └── data/todo_repository_test.dart        repository: filter mapping, toggle, create
 ```
+
+---
+
+## AI Tooling (MCP)
+
+This project is configured with the **Dart/Flutter MCP server**.  
+Location: `.gemini/settings.json`
+
+Capabilities:
+- Analyze & fix errors
+- Introspect UI (widget tree)
+- Package management (pub.dev)
+- Symbol resolution
 
 ---
 

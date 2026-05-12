@@ -15,24 +15,23 @@ No backend required. Designed for correctness, performance, and future extensibi
 
 ## 2. Architecture
 
-### 2.1 Pattern: Clean Architecture + DDD
+### 2.1 Pattern: Feature-First Architecture
 
-Three independent layers. Dependencies point inward.
+The project follows a **Feature-first** organization. Code is grouped by high-level features (e.g., `todos`) to improve scalability and discoverability.
 
 ```
-┌────────────────────────────────────────────┐
-│  Presentation                              │
-│  Flutter UI · Riverpod providers           │
-│  (depends on Domain only)                  │
-├────────────────────────────────────────────┤
-│  Domain  (pure Dart, zero Flutter deps)    │
-│  Models · Repository Interfaces            │
-├────────────────────────────────────────────┤
-│  Data                                      │
-│  Drift/SQLite · Repository Implementations │
-│  (depends on Domain interfaces)            │
-└────────────────────────────────────────────┘
+lib/
+├── core/                   (Cross-cutting: Theme, Base DB, Global providers)
+├── features/
+│   └── todos/              (Feature: Todo Management)
+│       ├── data/           (Repositories, Data sources)
+│       ├── domain/         (Models, Interfaces)
+│       └── presentation/   (Pages, Widgets, Providers)
+├── router/                 (Navigation)
+└── services/               (Global shared services)
 ```
+
+Dependencies point from Feature layers to Core/Domain layers.
 
 ### 2.2 DDD Mapping
 
@@ -222,13 +221,13 @@ Concurrency group cancels in-flight runs for the same branch.
 
 ---
 
-## 12. File Ownership (by layer)
+## 12. File Ownership (by feature/layer)
 
 | Directory | Layer | Change frequency |
 |-----------|-------|-----------------|
-| `lib/domain/` | Domain | Rare — core business rules |
-| `lib/data/` | Data | Medium — DB schema changes |
-| `lib/presentation/providers/` | Application | Medium — new use cases |
-| `lib/presentation/pages/` | UI | Frequent — UX iterations |
-| `lib/core/theme/` | Cross-cutting | Rare — design system |
+| `lib/features/todos/domain/` | Domain | Rare — core business rules |
+| `lib/features/todos/data/` | Data | Medium — DB schema changes |
+| `lib/features/todos/presentation/` | UI/App | Frequent — UX iterations |
+| `lib/core/` | Core | Rare — base infra |
+| `lib/services/` | Shared | Medium — cross-cutting logic |
 | `test/` | All | Grows with features |
