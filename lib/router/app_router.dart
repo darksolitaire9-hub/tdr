@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 
-import '../presentation/pages/home_page.dart';
-import '../presentation/pages/todo_form_page.dart';
+import '../features/todos/presentation/pages/home_page.dart';
+import '../features/todos/presentation/pages/todo_form_page.dart';
 
 final appRouter = GoRouter(
   routes: [
@@ -20,3 +20,4 @@ final appRouter = GoRouter(
     ),
   ],
 );
+

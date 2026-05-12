@@ -21,3 +21,4 @@ class App extends ConsumerWidget {
     );
   }
 }
+

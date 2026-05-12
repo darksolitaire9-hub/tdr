@@ -1,10 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:drift/drift.dart' show Value;
 
-import 'package:todo_app/data/local/app_database.dart';
-import 'package:todo_app/data/repositories/todo_repository_impl.dart';
-import 'package:todo_app/domain/models/todo.dart';
+import 'package:todo_app/core/data/local/app_database.dart';
+import 'package:todo_app/features/todos/data/repositories/todo_repository_impl.dart';
+import 'package:todo_app/features/todos/domain/models/todo.dart';
 
 class MockDb extends Mock implements AppDatabase {}
 
@@ -13,12 +12,16 @@ void main() {
   late TodoRepositoryImpl repo;
   final ts = DateTime(2024);
 
+  setUpAll(() {
+    registerFallbackValue(const TodosCompanion());
+  });
+
   setUp(() {
     db = MockDb();
     repo = TodoRepositoryImpl(db);
   });
 
-  TodoData _data({
+  TodoData todoData({
     String id = '1',
     String title = 'Test',
     bool done = false,
@@ -64,7 +67,7 @@ void main() {
       when(() => db.watchTodos(
             completed: any(named: 'completed'),
             search: any(named: 'search'),
-          )).thenAnswer((_) => Stream.value([_data(priority: 'high')]));
+          )).thenAnswer((_) => Stream.value([todoData(priority: 'high')]));
       final list = await repo.watchTodos().first;
       expect(list.first.priority, TodoPriority.high);
     });
@@ -72,7 +75,7 @@ void main() {
 
   group('toggleCompletion', () {
     test('flips false → true', () async {
-      when(() => db.getTodoById('1')).thenAnswer((_) async => _data());
+      when(() => db.getTodoById('1')).thenAnswer((_) async => todoData());
       when(() => db.toggleTodo('1', completed: true))
           .thenAnswer((_) async => true);
       await repo.toggleCompletion('1');
@@ -81,7 +84,7 @@ void main() {
 
     test('flips true → false', () async {
       when(() => db.getTodoById('1'))
-          .thenAnswer((_) async => _data(done: true));
+          .thenAnswer((_) async => todoData(done: true));
       when(() => db.toggleTodo('1', completed: false))
           .thenAnswer((_) async => true);
       await repo.toggleCompletion('1');
@@ -125,3 +128,4 @@ void main() {
     });
   });
 }
+

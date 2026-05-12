@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:todo_app/domain/models/todo.dart';
+import 'package:todo_app/features/todos/domain/models/todo.dart';
 
 void main() {
   final ts = DateTime(2024);
@@ -52,3 +52,4 @@ void main() {
     });
   });
 }
+
