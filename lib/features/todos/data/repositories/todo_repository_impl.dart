@@ -49,6 +49,9 @@ class TodoRepositoryImpl implements ITodoRepository {
       createdAt:   todo.createdAt,
       scheduledAt: Value(todo.scheduledAt),
       recurrence:  Value(todo.recurrence?.name),
+      posX:        Value(todo.posX),
+      posY:        Value(todo.posY),
+      rotation:    Value(todo.rotation),
     ));
   }
 
@@ -63,6 +66,9 @@ class TodoRepositoryImpl implements ITodoRepository {
       completedAt: Value(todo.completedAt),
       scheduledAt: Value(todo.scheduledAt),
       recurrence:  Value(todo.recurrence?.name),
+      posX:        Value(todo.posX),
+      posY:        Value(todo.posY),
+      rotation:    Value(todo.rotation),
     ));
   }
 
@@ -101,6 +107,9 @@ class TodoRepositoryImpl implements ITodoRepository {
         recurrence:  d.recurrence != null
             ? TodoRecurrence.values.byName(d.recurrence!)
             : null,
+        posX:        d.posX,
+        posY:        d.posY,
+        rotation:    d.rotation,
       );
 }
 

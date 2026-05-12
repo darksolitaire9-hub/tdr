@@ -19,5 +19,12 @@ abstract final class AppColors {
   static const priorityLow    = Color(0xFF8BA88E); // Sage
   static const priorityMedium = Color(0xFFD4A373); // Ochre
   static const priorityHigh   = Color(0xFFB45F4D); // Terracotta
+
+  // Moodboard Sticker Colors
+  static const stickerPink    = Color(0xFFFF71CE);
+  static const stickerBlue    = Color(0xFF01CDFE);
+  static const stickerYellow  = Color(0xFFFFFb96);
+  static const stickerGreen   = Color(0xFF05FFA1);
+  static const stickerPurple  = Color(0xFFB967FF);
 }
 

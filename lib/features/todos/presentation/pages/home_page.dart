@@ -23,12 +23,17 @@ class _HomePageState extends ConsumerState<HomePage> {
   final _inputFocus = FocusNode();
   DateTime? _parsedDate;
   String? _datePreview;
-  final _pageController = PageController();
+  final _transformationController = TransformationController();
 
   @override
   void initState() {
     super.initState();
     _listenToHardware();
+    // Start slightly zoomed out and centered
+    _transformationController.value = Matrix4.identity()
+      ..setTranslationRaw(-500.0, -500.0, 0.0)
+      ..storage[0] = 0.8 // scale X
+      ..storage[5] = 0.8; // scale Y
   }
 
   void _listenToHardware() {
@@ -51,7 +56,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void dispose() {
     _inputCtrl.dispose();
     _inputFocus.dispose();
-    _pageController.dispose();
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -94,21 +99,81 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       backgroundColor: scheme.surface,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            _buildHeader(isDailyFocus),
-            Expanded(
-              child: todosAsync.when(
-                data: (list) {
-                  final filtered = isDailyFocus ? _filterForToday(list) : list;
-                  return _buildPagedContent(filtered);
+            // The Infinite Moodboard Canvas
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  _inputFocus.requestFocus();
+                  HapticFeedback.selectionClick();
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                child: InteractiveViewer(
+                  transformationController: _transformationController,
+                  boundaryMargin: const EdgeInsets.all(4000),
+                  minScale: 0.2,
+                  maxScale: 3.0,
+                  child: Center(
+                    child: SizedBox(
+                      width: 2000,
+                      height: 2000,
+                      child: todosAsync.when(
+                        data: (list) {
+                          final filtered = isDailyFocus ? _filterForToday(list) : list;
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: filtered.map((todo) => TodoTile(todo: todo)).toList(),
+                          );
+                        },
+                        loading: () => const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text('Error: $e')),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-            _buildInputArea(scheme),
+            
+            // Fixed Header overlay
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      scheme.surface,
+                      scheme.surface.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+                child: _buildHeader(isDailyFocus),
+              ),
+            ),
+
+            // Pinned Input Area
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      scheme.surface,
+                      scheme.surface.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+                child: _buildInputArea(scheme),
+              ),
+            ),
           ],
         ),
       ),
@@ -117,20 +182,20 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildHeader(bool isDailyFocus) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isDailyFocus ? 'Today' : 'Gathered',
+            isDailyFocus ? 'Today' : 'Moodboard',
             style: Theme.of(context).textTheme.displayMedium,
           ),
           const SizedBox(height: 4),
           Text(
-            isDailyFocus ? 'Focused on the now.' : 'All that awaits your attention.',
+            isDailyFocus ? 'Focused on the now.' : 'Clutter yet freedom.',
             style: GoogleFonts.lora(
               fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -149,79 +214,41 @@ class _HomePageState extends ConsumerState<HomePage> {
     }).toList();
   }
 
-  Widget _buildPagedContent(List<Todo> list) {
-    if (list.isEmpty) {
-      return Center(
-        child: Text(
-          'A quiet moment.',
-          style: GoogleFonts.lora(
-            fontSize: 16,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+  Widget _buildInputArea(ColorScheme scheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_datePreview != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Icon(Icons.event, size: 14, color: scheme.primary),
+                const SizedBox(width: 4),
+                Text(
+                  _datePreview!,
+                  style: GoogleFonts.spaceGrotesk(fontSize: 13, color: scheme.primary, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        TextField(
+          controller: _inputCtrl,
+          focusNode: _inputFocus,
+          onChanged: _onInputChanged,
+          onSubmitted: (_) => _submit(),
+          textCapitalization: TextCapitalization.sentences,
+          style: GoogleFonts.caveat(fontSize: 28, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: 'Drop a thought...',
+            hintStyle: GoogleFonts.caveat(
+              fontSize: 28,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
+            border: InputBorder.none,
           ),
         ),
-      );
-    }
-
-    const itemsPerPage = 7;
-    final pageCount = (list.length / itemsPerPage).ceil();
-
-    return PageView.builder(
-      controller: _pageController,
-      itemCount: pageCount,
-      itemBuilder: (context, pageIndex) {
-        final start = pageIndex * itemsPerPage;
-        final end = (start + itemsPerPage < list.length) ? start + itemsPerPage : list.length;
-        final pageItems = list.sublist(start, end);
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              ...pageItems.map((todo) => TodoTile(todo: todo)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInputArea(ColorScheme scheme) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_datePreview != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Icon(Icons.event, size: 14, color: scheme.primary),
-                  const SizedBox(width: 4),
-                  Text(
-                    _datePreview!,
-                    style: GoogleFonts.lora(fontSize: 13, color: scheme.primary),
-                  ),
-                ],
-              ),
-            ),
-          TextField(
-            controller: _inputCtrl,
-            focusNode: _inputFocus,
-            onChanged: _onInputChanged,
-            onSubmitted: (_) => _submit(),
-            textCapitalization: TextCapitalization.sentences,
-            style: GoogleFonts.lora(fontSize: 18),
-            decoration: InputDecoration(
-              hintText: 'What calls to you?',
-              hintStyle: GoogleFonts.lora(
-                fontStyle: FontStyle.italic,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

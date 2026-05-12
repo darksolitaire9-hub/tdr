@@ -26,6 +26,9 @@ void main() {
     String title = 'Test',
     bool done = false,
     String priority = 'medium',
+    double posX = 0.0,
+    double posY = 0.0,
+    double rotation = 0.0,
   }) =>
       TodoData(
         id: id,
@@ -35,6 +38,9 @@ void main() {
         priority: priority,
         createdAt: ts,
         completedAt: null,
+        posX: posX,
+        posY: posY,
+        rotation: rotation,
       );
 
   group('watchTodos filter → db argument', () {

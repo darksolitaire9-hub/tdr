@@ -18,6 +18,10 @@ sealed class Todo with _$Todo {
     DateTime? completedAt,
     DateTime? scheduledAt,
     TodoRecurrence? recurrence,
+    // Spatial properties for Moodboard UI
+    @Default(0.0) double posX,
+    @Default(0.0) double posY,
+    @Default(0.0) double rotation,
   }) = _Todo;
 }
 

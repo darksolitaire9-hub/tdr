@@ -14,6 +14,9 @@ class Todos extends Table {
   DateTimeColumn get completedAt => dateTime().nullable()();
   DateTimeColumn get scheduledAt => dateTime().nullable()();
   TextColumn get recurrence      => text().nullable()();
+  RealColumn get posX            => real().withDefault(const Constant(0.0))();
+  RealColumn get posY            => real().withDefault(const Constant(0.0))();
+  RealColumn get rotation        => real().withDefault(const Constant(0.0))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -34,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -43,6 +46,11 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(todos, todos.scheduledAt);
         await m.addColumn(todos, todos.recurrence);
         await m.createTable(taskFrequencies);
+      }
+      if (from < 3) {
+        await m.addColumn(todos, todos.posX);
+        await m.addColumn(todos, todos.posY);
+        await m.addColumn(todos, todos.rotation);
       }
     },
   );
