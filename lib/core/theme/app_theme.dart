@@ -17,7 +17,7 @@ abstract final class AppTheme {
     final onAccent     = isLight ? Colors.white : AppColors.darkScaffold;
     final border       = textPrimary.withValues(alpha: 0.09);
 
-    // Seed-based scheme for derived tokens, overridden with earthy values.
+    // Flat color scheme with organic tones.
     final scheme = ColorScheme.fromSeed(
       seedColor: accent,
       brightness: brightness,
@@ -26,8 +26,7 @@ abstract final class AppTheme {
       onPrimary:             onAccent,
       secondary:             accent,
       onSecondary:           onAccent,
-      // Selected chips/containers derive from these.
-      secondaryContainer:    accent.withValues(alpha: 0.18),
+      secondaryContainer:    accent.withValues(alpha: 0.12),
       onSecondaryContainer:  accent,
       surface:               surface,
       onSurface:             textPrimary,
@@ -38,11 +37,19 @@ abstract final class AppTheme {
       outline:               border,
       outlineVariant:        border,
       surfaceTint:           Colors.transparent,
+      shadow:                Colors.transparent,
     );
 
-    final dmSans = GoogleFonts.dmSansTextTheme().apply(
+    // Artistic typography pairing: Serif for headlines, slightly organic Sans for body.
+    final textTheme = GoogleFonts.loraTextTheme().apply(
       bodyColor:    textPrimary,
       displayColor: textPrimary,
+    );
+
+    final displayMedium = GoogleFonts.playfairDisplay(
+      fontSize: 32,
+      fontWeight: FontWeight.bold,
+      color: textPrimary,
     );
 
     return ThemeData(
@@ -50,7 +57,9 @@ abstract final class AppTheme {
       colorScheme:            scheme,
       scaffoldBackgroundColor: scaffold,
       canvasColor:            surface,
-      textTheme:              dmSans,
+      textTheme:              textTheme.copyWith(
+        displayMedium: displayMedium,
+      ),
       appBarTheme: AppBarTheme(
         centerTitle:            false,
         elevation:              0,
@@ -58,41 +67,45 @@ abstract final class AppTheme {
         backgroundColor:        scaffold,
         foregroundColor:        textPrimary,
         surfaceTintColor:       Colors.transparent,
+        titleTextStyle:        GoogleFonts.playfairDisplay(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        shape:           const CircleBorder(),
+        elevation:       0,
+        focusElevation:  0,
+        hoverElevation:  0,
+        disabledElevation: 0,
+        highlightElevation: 0,
         backgroundColor: accent,
         foregroundColor: onAccent,
-        elevation:       2,
+        shape:           const CircleBorder(),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
         color:     surface,
+        margin:    EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero, // Minimalist flat cards
           side:         BorderSide(color: border),
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: surface,
-        selectedColor:   accent.withValues(alpha: 0.18),
+        backgroundColor: Colors.transparent,
+        selectedColor:   accent.withValues(alpha: 0.1),
         side:            BorderSide(color: border),
         showCheckmark:   false,
+        labelStyle:      GoogleFonts.lora(fontSize: 13, fontWeight: FontWeight.w500),
+        padding:         const EdgeInsets.symmetric(horizontal: 4),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: false,
-        border: UnderlineInputBorder(
-          borderSide: BorderSide(color: accent.withValues(alpha: 0.3)),
-        ),
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: accent.withValues(alpha: 0.3)),
-        ),
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: accent.withValues(alpha: 0.8)),
-        ),
-        hintStyle:     GoogleFonts.dmSans(fontSize: 16, color: textMuted),
-        labelStyle:    GoogleFonts.dmSans(fontSize: 16, color: textMuted),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        border: InputBorder.none, // Zen mode: no distracting borders
+        hintStyle:     GoogleFonts.lora(fontSize: 16, color: textMuted),
+        labelStyle:    GoogleFonts.lora(fontSize: 16, color: textMuted),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
       ),
       checkboxTheme: CheckboxThemeData(
         shape: const CircleBorder(),
@@ -100,15 +113,18 @@ abstract final class AppTheme {
           if (states.contains(WidgetState.selected)) return accent;
           return Colors.transparent;
         }),
-        side: BorderSide(color: textMuted, width: 1.5),
+        side: BorderSide(color: textMuted, width: 1.2),
       ),
       dividerTheme: DividerThemeData(color: border, thickness: 1),
-      dialogTheme: DialogThemeData(backgroundColor: surface),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior:         SnackBarBehavior.floating,
         backgroundColor:  textPrimary,
-        contentTextStyle: GoogleFonts.dmSans(color: scaffold, fontSize: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        contentTextStyle: GoogleFonts.lora(color: scaffold, fontSize: 14),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       ),
     );
   }

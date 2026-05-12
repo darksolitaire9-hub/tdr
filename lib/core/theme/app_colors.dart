@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  // Light mode — warm parchment
-  static const lightScaffold    = Color(0xFFF7F6F2);
-  static const lightSurface     = Color(0xFFF2F1EC);
-  static const lightTextPrimary = Color(0xFF1C1A16);
-  static const lightTextMuted   = Color(0xFF9A9890);
-  static const lightAccent      = Color(0xFF5C7A6E);
+  // Light mode — Unbleached Linen & Deep Pine
+  static const lightScaffold    = Color(0xFFF4F1EA); // Unbleached Linen
+  static const lightSurface     = Color(0xFFEBE7DF); // Stone/Linen blend
+  static const lightTextPrimary = Color(0xFF2D3A30); // Deep Pine Ink
+  static const lightTextMuted   = Color(0xFF8C8A82); // Dusty Earth
+  static const lightAccent      = Color(0xFFB45F4D); // Terracotta
 
-  // Dark mode — deep ink
-  static const darkScaffold     = Color(0xFF16150F);
-  static const darkSurface      = Color(0xFF1C1B14);
-  static const darkTextPrimary  = Color(0xFFE8E5DC);
-  static const darkTextMuted    = Color(0xFF6B6960);
-  static const darkAccent       = Color(0xFF7AAB9A);
+  // Dark mode — Slate & Sage
+  static const darkScaffold     = Color(0xFF1B1F1C); // Deep Slate
+  static const darkSurface      = Color(0xFF242926); // Forest Shadow
+  static const darkTextPrimary  = Color(0xFFE0DCD1); // Aged Paper
+  static const darkTextMuted    = Color(0xFF707872); // Mossy Slate
+  static const darkAccent       = Color(0xFF8BA88E); // Sage
 
-  // Priority indicators
-  static const priorityLow    = Color(0xFF10B981);
-  static const priorityMedium = Color(0xFFF59E0B);
-  static const priorityHigh   = Color(0xFFEF4444);
+  // Priority & Status Indicators (Natural tones)
+  static const priorityLow    = Color(0xFF8BA88E); // Sage
+  static const priorityMedium = Color(0xFFD4A373); // Ochre
+  static const priorityHigh   = Color(0xFFB45F4D); // Terracotta
 }
 
