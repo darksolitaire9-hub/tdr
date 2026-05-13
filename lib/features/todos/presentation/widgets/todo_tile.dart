@@ -71,6 +71,13 @@ class _TodoTileState extends ConsumerState<TodoTile> {
       }
     });
 
+    // Force close edit mode if selection is lost
+    ref.listen(selectedTodoIdProvider, (prev, next) {
+      if (_isEditing && next != todo.id) {
+        _saveEdit();
+      }
+    });
+
     // The live position is the stored DB position + active drag delta + snap offset (if any)
     final activeSnapOffset = (isDragging && snapState.isSnapped) ? snapState.offset : Offset.zero;
     final x = todo.posX + dragOffset.dx + activeSnapOffset.dx;
