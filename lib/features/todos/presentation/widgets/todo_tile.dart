@@ -148,8 +148,11 @@ class _TodoTileState extends ConsumerState<TodoTile> {
             },
             onPointerUp: (event) {
               if (isDragging && !_isEditing) {
-                // Save this item's new position
-                ref.read(todoActionsProvider.notifier).updatePosition(todo.id, x, y);
+                // Brick Alignment: Snap final position to 20px grid
+                final snappedX = (x / 20).round() * 20.0;
+                final snappedY = (y / 20).round() * 20.0;
+
+                ref.read(todoActionsProvider.notifier).updatePosition(todo.id, snappedX, snappedY);
 
                 ref.read(draggingTodoIdProvider.notifier).set(null);
                 ref.read(dragOffsetProvider.notifier).set(Offset.zero);
@@ -170,8 +173,17 @@ class _TodoTileState extends ConsumerState<TodoTile> {
               clipBehavior: Clip.none,
               children: [
                 GestureDetector(
+                  onTap: () {
+                    // Consume tap to prevent canvas from clearing selection
+                    if (!isSelected) {
+                      ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+                      HapticFeedback.selectionClick();
+                    }
+                  },
                   onDoubleTap: () {
-                    if (!isSelected) return;
+                    if (!isSelected) {
+                      ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+                    }
                     setState(() => _isEditing = true);
                     _focusNode.requestFocus();
                     HapticFeedback.lightImpact();
