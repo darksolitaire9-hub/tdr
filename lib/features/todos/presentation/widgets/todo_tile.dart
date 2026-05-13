@@ -115,49 +115,99 @@ class TodoTile extends ConsumerWidget {
               ref.read(dragOffsetProvider.notifier).set(Offset.zero);
               ref.read(snapDisplacementProvider.notifier).clear();
             },
-            child: GestureDetector(
-              onDoubleTap: () {
-                ref.read(todoActionsProvider.notifier).toggle(todo.id);
-                HapticFeedback.mediumImpact();
-                AudioService.play(AudioEffect.check);
-              },
-              onLongPress: () {
-                ref.read(todoActionsProvider.notifier).delete(todo.id);
-                HapticFeedback.heavyImpact();
-                AudioService.play(AudioEffect.delete);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                constraints: const BoxConstraints(maxWidth: 250),
-                decoration: BoxDecoration(
-                  color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDragging ? 0.3 : 0.1),
-                      blurRadius: isDragging ? 12 : 4,
-                      offset: isDragging ? const Offset(8, 8) : const Offset(2, 2),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                GestureDetector(
+                  onDoubleTap: () {
+                    ref.read(todoActionsProvider.notifier).toggle(todo.id);
+                    HapticFeedback.mediumImpact();
+                    AudioService.play(AudioEffect.check);
+                  },
+                  onLongPress: () {
+                    ref.read(todoActionsProvider.notifier).delete(todo.id);
+                    HapticFeedback.heavyImpact();
+                    AudioService.play(AudioEffect.delete);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    constraints: const BoxConstraints(maxWidth: 250),
+                    decoration: BoxDecoration(
+                      color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDragging ? 0.3 : 0.1),
+                          blurRadius: isDragging ? 12 : 4,
+                          offset: isDragging ? const Offset(8, 8) : const Offset(2, 2),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    Text(
-                      todo.title,
-                      style: font.copyWith(fontSize: fontSize),
-                    ),
-                    if (todo.isCompleted)
-                      Positioned.fill(
-                        child: Center(
-                          child: Container(
-                            height: 4,
-                            width: double.infinity,
-                            color: Colors.redAccent.withValues(alpha: 0.6),
+                    child: Stack(
+                      children: [
+                        Text(
+                          todo.title,
+                          style: font.copyWith(fontSize: fontSize),
+                        ),
+                        if (todo.isCompleted)
+                          Positioned.fill(
+                            child: Center(
+                              child: Container(
+                                height: 4,
+                                width: double.infinity,
+                                color: Colors.redAccent.withValues(alpha: 0.6),
+                              ),
+                            ),
                           ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (isSelected) ...[
+                  Positioned(
+                    top: -4,
+                    bottom: -4,
+                    left: -4,
+                    right: -4,
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.blueAccent, width: 2),
                         ),
                       ),
-                  ],
-                ),
-              ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -48,
+                    right: 0,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(8),
+                      color: Theme.of(context).colorScheme.surface,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.check, size: 20),
+                            onPressed: () {
+                              ref.read(todoActionsProvider.notifier).toggle(todo.id);
+                              HapticFeedback.mediumImpact();
+                              AudioService.play(AudioEffect.check);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
+                            onPressed: () {
+                              ref.read(todoActionsProvider.notifier).delete(todo.id);
+                              HapticFeedback.heavyImpact();
+                              AudioService.play(AudioEffect.delete);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),
