@@ -5,8 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'collision_service.g.dart';
 
 const double _cellSize = 300.0;
-const double _repulsionRadius = 220.0; // Distance at which stickers start pushing each other
-const double _repulsionForce = 0.8; // How strongly they push
+const double _snapRadius = 24.0; // Distance to trigger magnetic snap
 
 class SpatialHashGrid {
   final Map<String, List<String>> _cells = {};
@@ -68,14 +67,25 @@ class SpatialGrid extends _$SpatialGrid {
   }
 }
 
-@riverpod
-class CollisionDisplacements extends _$CollisionDisplacements {
-  @override
-  Map<String, Offset> build() => {};
+class SnapState {
+  final Offset offset;
+  final bool isSnapped;
+  const SnapState(this.offset, this.isSnapped);
+}
 
-  void calculatePush(String draggingId, Offset dragPos, Map<String, Offset> allPositions, SpatialHashGrid grid) {
-    final newDisplacements = <String, Offset>{};
+@riverpod
+class SnapDisplacement extends _$SnapDisplacement {
+  @override
+  SnapState build() => const SnapState(Offset.zero, false);
+
+  void calculateSnap(String draggingId, Offset dragPos, Map<String, Offset> allPositions, SpatialHashGrid grid) {
     final potentialColliders = grid.getPotentialColliders(dragPos.dx, dragPos.dy);
+
+    double minDx = _snapRadius;
+    double minDy = _snapRadius;
+    double snapX = 0;
+    double snapY = 0;
+    bool snapped = false;
 
     for (final otherId in potentialColliders) {
       if (otherId == draggingId) continue;
@@ -85,22 +95,29 @@ class CollisionDisplacements extends _$CollisionDisplacements {
 
       final dx = otherPos.dx - dragPos.dx;
       final dy = otherPos.dy - dragPos.dy;
-      final distance = sqrt(dx * dx + dy * dy);
 
-      if (distance < _repulsionRadius && distance > 0) {
-        // Calculate repulsion vector (inverse square-ish)
-        final pushStrength = (_repulsionRadius - distance) / _repulsionRadius;
-        final pushX = (dx / distance) * pushStrength * _repulsionRadius * _repulsionForce;
-        final pushY = (dy / distance) * pushStrength * _repulsionRadius * _repulsionForce;
-        
-        newDisplacements[otherId] = Offset(pushX, pushY);
+      // Axial snapping (align X or Y independently, just like smart guides)
+      if (dx.abs() < minDx) {
+        minDx = dx.abs();
+        snapX = dx;
+        snapped = true;
+      }
+      
+      if (dy.abs() < minDy) {
+        minDy = dy.abs();
+        snapY = dy;
+        snapped = true;
       }
     }
 
-    state = newDisplacements;
+    if (snapped) {
+      state = SnapState(Offset(snapX, snapY), true);
+    } else {
+      state = const SnapState(Offset.zero, false);
+    }
   }
 
   void clear() {
-    state = {};
+    state = const SnapState(Offset.zero, false);
   }
 }

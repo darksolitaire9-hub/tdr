@@ -18,18 +18,22 @@ class TodoTile extends ConsumerWidget {
     final draggingId = ref.watch(draggingTodoIdProvider);
     final isDragging = draggingId == todo.id;
     final dragOffset = isDragging ? ref.watch(dragOffsetProvider) : Offset.zero;
-    final displacements = ref.watch(collisionDisplacementsProvider);
+    final snapState = ref.watch(snapDisplacementProvider);
 
-    // Apply push displacement if this item is being shoved by another
-    final pushOffset = displacements[todo.id] ?? Offset.zero;
-    final isPushed = pushOffset != Offset.zero;
+    // Haptic feedback when snapping engages
+    ref.listen(snapDisplacementProvider, (prev, next) {
+      if (isDragging && (prev == null || !prev.isSnapped) && next.isSnapped) {
+        HapticFeedback.selectionClick();
+      }
+    });
 
-    // The live position is the stored DB position + active drag delta + push displacement
-    final x = todo.posX + dragOffset.dx + pushOffset.dx;
-    final y = todo.posY + dragOffset.dy + pushOffset.dy;
+    // The live position is the stored DB position + active drag delta + snap offset (if any)
+    final activeSnapOffset = (isDragging && snapState.isSnapped) ? snapState.offset : Offset.zero;
+    final x = todo.posX + dragOffset.dx + activeSnapOffset.dx;
+    final y = todo.posY + dragOffset.dy + activeSnapOffset.dy;
 
-    // Visual Recoil (Squash) when pushed
-    final scale = isPushed ? 0.95 : (isDragging ? 1.05 : 1.0);
+    // Visual scale up for dragging
+    final scale = isDragging ? 1.05 : 1.0;
 
     // Playful sticker styling
     final stickerColors = [
@@ -75,38 +79,24 @@ class TodoTile extends ConsumerWidget {
                 final newOffset = current + event.delta;
                 ref.read(dragOffsetProvider.notifier).set(newOffset);
 
-                // Kinetic Physics: Push neighbors
+                // Magnetic Snapping
                 final allPos = await ref.read(allTodoPositionsProvider.future);
                 final grid = ref.read(spatialGridProvider);
                 final livePos = Offset(todo.posX + newOffset.dx, todo.posY + newOffset.dy);
                 
-                ref.read(collisionDisplacementsProvider.notifier).calculatePush(
+                ref.read(snapDisplacementProvider.notifier).calculateSnap(
                   todo.id, livePos, allPos, grid
                 );
-
-                // Velocity-linked sensory feedback could go here (e.g. tracking dt and delta)
               }
             },
             onPointerUp: (event) {
               if (isDragging) {
                 // Save this item's new position
                 ref.read(todoActionsProvider.notifier).updatePosition(todo.id, x, y);
-                
-                // Save pushed items' positions
-                final activeDisplacements = ref.read(collisionDisplacementsProvider);
-                for (final entry in activeDisplacements.entries) {
-                  final pushedId = entry.key;
-                  final pushVec = entry.value;
-                  ref.read(todoActionsProvider.notifier).updatePosition(
-                    pushedId, 
-                    todo.posX + pushVec.dx, // Ideally we query its base pos, but for simplicity: Let the DB stream catch up or resolve it via a batch action.
-                    todo.posY + pushVec.dy
-                  );
-                }
 
                 ref.read(draggingTodoIdProvider.notifier).set(null);
                 ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-                ref.read(collisionDisplacementsProvider.notifier).clear();
+                ref.read(snapDisplacementProvider.notifier).clear();
                 
                 HapticFeedback.lightImpact();
                 AudioService.play(AudioEffect.select);
@@ -115,7 +105,7 @@ class TodoTile extends ConsumerWidget {
             onPointerCancel: (event) {
               ref.read(draggingTodoIdProvider.notifier).set(null);
               ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-              ref.read(collisionDisplacementsProvider.notifier).clear();
+              ref.read(snapDisplacementProvider.notifier).clear();
             },
             child: GestureDetector(
               onDoubleTap: () {
