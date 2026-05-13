@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -6,6 +7,20 @@ import '../../domain/models/todo.dart';
 import 'database_provider.dart';
 
 part 'todo_provider.g.dart';
+
+@riverpod
+class DraggingTodoId extends _$DraggingTodoId {
+  @override
+  String? build() => null;
+  void set(String? id) => state = id;
+}
+
+@riverpod
+class DragOffset extends _$DragOffset {
+  @override
+  Offset build() => Offset.zero;
+  void set(Offset offset) => state = offset;
+}
 
 @riverpod
 Stream<List<Todo>> todoStream(
