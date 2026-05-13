@@ -41,6 +41,8 @@ void main() {
         posX: posX,
         posY: posY,
         rotation: rotation,
+        width: 250.0,
+        colorIndex: 0,
       );
 
   group('watchTodos filter → db argument', () {
