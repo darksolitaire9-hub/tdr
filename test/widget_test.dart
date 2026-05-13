@@ -37,6 +37,6 @@ void main() {
     );
 
     // App title is rendered
-    expect(find.text('My Todos'), findsOneWidget);
+    expect(find.text('Moodboard'), findsOneWidget);
   });
 }

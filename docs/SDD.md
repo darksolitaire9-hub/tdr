@@ -1,15 +1,16 @@
-# Software Design Document — Flutter Todo App
+# Software Design Document — Moodboard Todo App
 
-**Version:** 1.0  
-**Date:** 2026-05-11  
+**Version:** 1.1  
+**Date:** 2026-05-13  
 **Platform:** Android (Flutter 3.24, Dart 3.3)
 
 ---
 
 ## 1. Purpose & Scope
 
-Single-platform Android todo app. Local-first: all data persists in SQLite on the device.
-No backend required. Designed for correctness, performance, and future extensibility.
+Single-platform Android todo app. **Infinite Moodboard Canvas**: all data persists locally in SQLite. 
+Unlike standard list-based apps, this is a spatial, tactile environment for thoughts and tasks.
+Tasks are "stickers" on an infinite canvas, supporting free-form positioning and rotation.
 
 ---
 
@@ -28,21 +29,22 @@ lib/
 │       ├── domain/         (Models, Interfaces)
 │       └── presentation/   (Pages, Widgets, Providers)
 ├── router/                 (Navigation)
-└── services/               (Global shared services)
+├── services/               (Global shared services: Audio, Hardware, NLP)
+└── main.dart               (Entry point)
 ```
 
 Dependencies point from Feature layers to Core/Domain layers.
 
-### 2.2 DDD Mapping
+### 2.2 Domain & Services
 
-| DDD Concept | Implementation |
+| Concept | Implementation |
 |------------|----------------|
 | Bounded Context | Todo Management |
 | Aggregate Root | `Todo` (freezed, immutable) |
-| Value Objects | `TodoPriority` enum, `TodoFilter` enum |
-| Repository (Port) | `ITodoRepository` abstract interface |
-| Repository (Adapter) | `TodoRepositoryImpl` (Drift-backed) |
+| Value Objects | `TodoPriority`, `TodoFilter`, `TodoRecurrence` |
 | Application Service | `TodoActions` Riverpod notifier |
+| Domain Service | `TaskParserService` (Natural Language Parsing) |
+| Infrastructure Service | `HardwareService` (Volume buttons), `AudioService` |
 
 ---
 
@@ -59,6 +61,12 @@ Todo {
   priority:    enum       // low | medium | high, default medium
   createdAt:   DateTime
   completedAt: DateTime?  // set when isCompleted → true
+  scheduledAt: DateTime?  // NLP-parsed date/time
+  recurrence:  enum?      // daily | weekly
+  // Spatial properties
+  posX:        double     // Canvas X coordinate
+  posY:        double     // Canvas Y coordinate
+  rotation:    double     // Sticker rotation in radians
 }
 ```
 
@@ -70,122 +78,99 @@ Todo {
 | `title` | TEXT | length 1–500 |
 | `description` | TEXT | DEFAULT '' |
 | `is_completed` | BOOLEAN | DEFAULT false |
-| `priority` | TEXT | DEFAULT 'medium' (enum name) |
+| `priority` | TEXT | DEFAULT 'medium' |
 | `created_at` | INTEGER (Unix ms) | NOT NULL |
 | `completed_at` | INTEGER (Unix ms) | NULLABLE |
+| `scheduled_at` | INTEGER (Unix ms) | NULLABLE |
+| `recurrence` | TEXT | NULLABLE |
+| `pos_x` | REAL | DEFAULT 0.0 |
+| `pos_y` | REAL | DEFAULT 0.0 |
+| `rotation` | REAL | DEFAULT 0.0 |
 
-**Schema version:** 1. Future changes use `MigrationStrategy` in `AppDatabase`.
-
-### 3.3 Data Class vs Domain Model
-
-Drift generates `TodoData` (persistence model). `TodoRepositoryImpl` maps it to/from `Todo` (domain model). The two are intentionally separate — domain logic never depends on Drift.
+**Schema version:** 3.
 
 ---
 
-## 4. State Management
+## 4. State Management & Navigation
 
 ### 4.1 Provider Graph
 
 ```
 ProviderScope
-  sharedPreferencesProvider (keepAlive) ← overridden in main()
-  appThemeModeProvider (keepAlive)       ← reads SharedPrefs
-  appDatabaseProvider (keepAlive)        ← AppDatabase singleton
-  todoRepositoryProvider (keepAlive)     ← ITodoRepository impl
-  todoStreamProvider(filter, search)     ← Stream<List<Todo>>
-  todoActionsProvider                    ← write-only notifier
+  sharedPreferencesProvider (keepAlive)
+  appDatabaseProvider (keepAlive)
+  todoStreamProvider(filter)             ← Stream<List<Todo>>
+  todoActionsProvider                    ← Write-only notifier (CRUD + Position)
+  dailyFocusProvider                     ← Toggle for "Today" view
+  hardwareServiceProvider                ← Volume button stream
+  taskParserServiceProvider              ← NLP logic
 ```
 
-### 4.2 Write vs Read Pattern
+### 4.2 UI Flow (Canvas)
 
-**Read:** `todoStreamProvider` returns a Drift stream. UI rebuilds automatically on any DB change. No polling.
-
-**Write:** `todoActionsProvider.notifier.create/update/delete/toggle(...)`. Methods call the repository; Drift's stream emits the updated list.
-
----
-
-## 5. Navigation
-
-| Route | Widget | Purpose |
+| View | Widget | Purpose |
 |-------|--------|---------|
-| `/` | `HomePage` | List + filter + search |
-| `/todo/new` | `TodoFormPage()` | Create |
-| `/todo/edit/:id` | `TodoFormPage(todoId: id)` | Edit / delete |
+| **Moodboard** | `InteractiveViewer` + `Stack` | Infinite spatial canvas for all active tasks |
+| **Focus Mode** | `HomePage` (Filtered) | Shows only tasks scheduled for "Today" |
 
-Router: `go_router` declarative. Typed path parameters. No navigator stack manipulation.
+**Interaction Pattern:**
+- **Pan:** Drag stickers to move them on the canvas (`updatePosition`).
+- **Double Tap:** Toggle completion (strikethrough).
+- **Long Press:** Delete sticker.
+- **Hardware Up:** Open input focus + Play "Create" sound.
+- **Hardware Down:** Toggle "Daily Focus" mode.
 
 ---
 
-## 6. Design System
+## 5. Design System
 
-### 6.1 Tokens
+### 5.1 Tokens & UX
 
 | Token | Value | Rationale |
 |-------|-------|-----------|
-| Primary seed | `#6366F1` (Indigo 500) | Calm, focused energy |
-| Priority Low | `#10B981` | Green = safe/low urgency |
-| Priority Medium | `#F59E0B` | Amber = attention |
-| Priority High | `#EF4444` | Red = urgent |
-| Font | Nunito | Rounded, friendly, legible |
-| Card radius | 12px | Modern M3 feel |
-| Card elevation | 0 | Flat with `outlineVariant` border |
+| Stickers | Pink, Blue, Yellow, Green, Purple | High-contrast playful palette |
+| Font (Short) | Space Grotesk (Bold) | Loud, punchy for brief thoughts |
+| Font (Long) | Caveat | Personal, handwritten feel for notes |
+| Feedback | Haptics + Audio | Tactile satisfaction for spatial actions |
 
-### 6.2 Theme
+### 5.2 Dynamic Typography
 
-Material 3 `ColorScheme.fromSeed()` generates the full palette from the primary seed.
-Light and dark variants via `AppTheme.light()` / `AppTheme.dark()`.
-Theme mode persisted to `SharedPreferences`.
-
-### 6.3 Component Hierarchy (Atomic Design)
-
-```
-Atoms:    _PriorityDot, FilterChip (M3 built-in), Checkbox
-Molecules: TodoTile (dot + checkbox + text), FilterBar
-Organisms: HomePage (AppBar + FilterBar + List + FAB)
-Pages:    HomePage, TodoFormPage
-```
+Stickers dynamically scale font size and switch families based on title length to maintain visual interest and readability in a free-form canvas.
 
 ---
 
-## 7. Performance
+## 6. Performance & UX Optimization
 
 | Concern | Approach |
 |---------|----------|
-| List rendering | `ListView.builder` — lazy, O(visible) |
+| Canvas Performance | `InteractiveViewer` with `TransformationController` |
 | DB reactivity | Drift streams — only changed queries re-emit |
-| Animations | `flutter_animate` GPU-accelerated (`fadeIn`, `slideX`) |
-| State granularity | `todoStreamProvider` is parameterized; filter changes re-subscribe |
-| Singleton providers | `keepAlive: true` on DB and repository — no re-creation |
-| `const` widgets | Used on all stateless leaf widgets |
+| Audio/Haptics | Pre-cached audio effects for zero-latency feedback |
+| State Granularity | `updatePosition` uses debounced or per-drop updates to minimize DB writes |
 
 ---
 
-## 8. Security
+## 7. Security & Safety
 
-| Risk | Mitigation |
-|------|-----------|
-| SQL injection | Drift parameterized queries — no raw SQL |
-| Input overflow | `withLength` on DB column + `maxLength` on form fields |
-| Excessive input | Title ≤ 500 chars, description ≤ 1 000 chars; trimmed before save |
-| Data exposure | Local-only, no network; SQLite file in app-private storage |
-| No secrets | App contains no API keys, tokens, or credentials |
-| Future network | Must add HTTPS, certificate pinning, OAuth 2.0 before any API calls |
+- **Local-Only:** No network traffic; all data stays in the device's sandbox.
+- **Input Sanitization:** NLP stripping ensures titles remain clean while extracting metadata.
+- **Hardware Safety:** Uses specific button interception for accessible fast-input.
 
 ---
 
-## 9. Testing Strategy
+## 8. Testing Strategy
 
 | Layer | Kind | Tool | Target |
 |-------|------|------|--------|
 | Domain models | Unit | `flutter_test` | 100% |
 | Repository | Unit (mock DB) | `mocktail` | 90% |
 | Providers | Unit (`ProviderContainer`) | `flutter_riverpod/testing` | 80% |
-| Widgets | Widget | `flutter_test` | Critical paths |
-| DB integration | In-memory Drift | `NativeDatabase.memory()` | CRUD flows |
+| Widgets | Widget | `flutter_test` | Critical paths (Moodboard rendering) |
+| DB integration | In-memory Drift | `NativeDatabase.memory()` | CRUD + Spatial flows |
 
 ---
 
-## 10. CI/CD Pipeline
+## 9. CI/CD Pipeline
 
 ```
 push/PR to main or develop
@@ -207,21 +192,20 @@ Concurrency group cancels in-flight runs for the same branch.
 
 ---
 
-## 11. Extension Points
+## 10. Extension Points
 
 | Feature | What to add |
 |---------|------------|
-| Due dates | Drift migration v2: `DateTimeColumn? dueAt` in `Todos` |
 | Categories | New `Tags` table + `TodoTags` join table; update `ITodoRepository` |
-| Notifications | `flutter_local_notifications`, schedule on `dueAt` |
+| Notifications | `flutter_local_notifications`, schedule on `scheduledAt` |
 | Cloud sync | Swap `TodoRepositoryImpl` for a sync-aware adapter; domain unchanged |
 | DB encryption | `sqlcipher_flutter_libs` + drift encryption plugin |
 | App icon | `flutter_launcher_icons` package |
-| Offline indicator | Wrap `appDatabaseProvider` errors; show banner |
+| Canvas Themes | Multiple canvas backgrounds (cork, paper, dark felt) |
 
 ---
 
-## 12. File Ownership (by feature/layer)
+## 11. File Ownership (by feature/layer)
 
 | Directory | Layer | Change frequency |
 |-----------|-------|-----------------|
