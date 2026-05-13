@@ -9,12 +9,54 @@ import '../../../../services/audio_service.dart';
 import '../../../../services/collision_service.dart';
 import '../providers/todo_provider.dart';
 
-class TodoTile extends ConsumerWidget {
+class TodoTile extends ConsumerStatefulWidget {
   const TodoTile({super.key, required this.todo});
   final Todo todo;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodoTile> createState() => _TodoTileState();
+}
+
+class _TodoTileState extends ConsumerState<TodoTile> {
+  bool _isEditing = false;
+  late TextEditingController _textCtrl;
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _textCtrl = TextEditingController(text: widget.todo.title);
+  }
+
+  @override
+  void didUpdateWidget(TodoTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.todo.title != widget.todo.title && !_isEditing) {
+      _textCtrl.text = widget.todo.title;
+    }
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _saveEdit() {
+    setState(() => _isEditing = false);
+    final newTitle = _textCtrl.text.trim();
+    if (newTitle.isNotEmpty && newTitle != widget.todo.title) {
+      ref.read(todoActionsProvider.notifier).update(widget.todo.copyWith(title: newTitle));
+      AudioService.play(AudioEffect.create);
+    } else {
+      _textCtrl.text = widget.todo.title; // revert
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final todo = widget.todo;
     final draggingId = ref.watch(draggingTodoIdProvider);
     final selectedId = ref.watch(selectedTodoIdProvider);
     final isDragging = draggingId == todo.id;
@@ -67,6 +109,7 @@ class TodoTile extends ConsumerWidget {
           curve: Curves.easeOutBack,
           child: Listener(
             onPointerDown: (event) async {
+              if (_isEditing) return; // Don't interrupt editing
               ref.read(draggingTodoIdProvider.notifier).set(todo.id);
               ref.read(dragOffsetProvider.notifier).set(Offset.zero);
               
@@ -80,9 +123,8 @@ class TodoTile extends ConsumerWidget {
               final positions = await ref.read(allTodoPositionsProvider.future);
               ref.read(spatialGridProvider.notifier).rebuild(positions);
             },
-
             onPointerMove: (event) async {
-              if (isDragging) {
+              if (isDragging && !_isEditing) {
                 final current = ref.read(dragOffsetProvider);
                 final newOffset = current + event.delta;
                 ref.read(dragOffsetProvider.notifier).set(newOffset);
@@ -98,7 +140,7 @@ class TodoTile extends ConsumerWidget {
               }
             },
             onPointerUp: (event) {
-              if (isDragging) {
+              if (isDragging && !_isEditing) {
                 // Save this item's new position
                 ref.read(todoActionsProvider.notifier).updatePosition(todo.id, x, y);
 
@@ -111,20 +153,24 @@ class TodoTile extends ConsumerWidget {
               }
             },
             onPointerCancel: (event) {
-              ref.read(draggingTodoIdProvider.notifier).set(null);
-              ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-              ref.read(snapDisplacementProvider.notifier).clear();
+              if (!_isEditing) {
+                ref.read(draggingTodoIdProvider.notifier).set(null);
+                ref.read(dragOffsetProvider.notifier).set(Offset.zero);
+                ref.read(snapDisplacementProvider.notifier).clear();
+              }
             },
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 GestureDetector(
                   onDoubleTap: () {
-                    ref.read(todoActionsProvider.notifier).toggle(todo.id);
-                    HapticFeedback.mediumImpact();
-                    AudioService.play(AudioEffect.check);
+                    if (!isSelected) return;
+                    setState(() => _isEditing = true);
+                    _focusNode.requestFocus();
+                    HapticFeedback.lightImpact();
                   },
                   onLongPress: () {
+                    if (_isEditing) return;
                     ref.read(todoActionsProvider.notifier).delete(todo.id);
                     HapticFeedback.heavyImpact();
                     AudioService.play(AudioEffect.delete);
@@ -144,11 +190,26 @@ class TodoTile extends ConsumerWidget {
                     ),
                     child: Stack(
                       children: [
-                        Text(
-                          todo.title,
-                          style: font.copyWith(fontSize: fontSize),
-                        ),
-                        if (todo.isCompleted)
+                        _isEditing
+                            ? TextField(
+                                controller: _textCtrl,
+                                focusNode: _focusNode,
+                                style: font.copyWith(fontSize: fontSize),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                maxLines: null,
+                                onSubmitted: (_) => _saveEdit(),
+                                onEditingComplete: _saveEdit,
+                                onTapOutside: (_) => _saveEdit(),
+                              )
+                            : Text(
+                                todo.title,
+                                style: font.copyWith(fontSize: fontSize),
+                              ),
+                        if (todo.isCompleted && !_isEditing)
                           Positioned.fill(
                             child: Center(
                               child: Container(
@@ -162,7 +223,7 @@ class TodoTile extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (isSelected) ...[
+                if (isSelected && !_isEditing) ...[
                   Positioned(
                     top: -4,
                     bottom: -4,
@@ -186,6 +247,14 @@ class TodoTile extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            onPressed: () {
+                              setState(() => _isEditing = true);
+                              _focusNode.requestFocus();
+                              HapticFeedback.lightImpact();
+                            },
+                          ),
                           IconButton(
                             icon: const Icon(Icons.check, size: 20),
                             onPressed: () {
