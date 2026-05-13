@@ -16,7 +16,9 @@ class TodoTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final draggingId = ref.watch(draggingTodoIdProvider);
+    final selectedId = ref.watch(selectedTodoIdProvider);
     final isDragging = draggingId == todo.id;
+    final isSelected = selectedId == todo.id;
     final dragOffset = isDragging ? ref.watch(dragOffsetProvider) : Offset.zero;
     final snapState = ref.watch(snapDisplacementProvider);
 
@@ -32,8 +34,8 @@ class TodoTile extends ConsumerWidget {
     final x = todo.posX + dragOffset.dx + activeSnapOffset.dx;
     final y = todo.posY + dragOffset.dy + activeSnapOffset.dy;
 
-    // Visual scale up for dragging
-    final scale = isDragging ? 1.05 : 1.0;
+    // Visual scale up for dragging or selected
+    final scale = isDragging ? 1.05 : (isSelected ? 1.02 : 1.0);
 
     // Playful sticker styling
     final stickerColors = [
@@ -67,12 +69,18 @@ class TodoTile extends ConsumerWidget {
             onPointerDown: (event) async {
               ref.read(draggingTodoIdProvider.notifier).set(todo.id);
               ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-              HapticFeedback.selectionClick();
+              
+              // Only trigger haptic if not already selected
+              if (!isSelected) {
+                ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+                HapticFeedback.selectionClick();
+              }
               
               // Ensure spatial grid is ready for collision checks
               final positions = await ref.read(allTodoPositionsProvider.future);
               ref.read(spatialGridProvider.notifier).rebuild(positions);
             },
+
             onPointerMove: (event) async {
               if (isDragging) {
                 final current = ref.read(dragOffsetProvider);

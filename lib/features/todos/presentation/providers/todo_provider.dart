@@ -16,6 +16,13 @@ class DraggingTodoId extends _$DraggingTodoId {
 }
 
 @riverpod
+class SelectedTodoId extends _$SelectedTodoId {
+  @override
+  String? build() => null;
+  void set(String? id) => state = id;
+}
+
+@riverpod
 class DragOffset extends _$DragOffset {
   @override
   Offset build() => Offset.zero;

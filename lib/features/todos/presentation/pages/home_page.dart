@@ -146,7 +146,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             Positioned.fill(
               child: GestureDetector(
                 onTap: () {
-                  // Future: Clear selection
+                  ref.read(selectedTodoIdProvider.notifier).set(null);
                   HapticFeedback.selectionClick();
                 },
                 child: InteractiveViewer(
