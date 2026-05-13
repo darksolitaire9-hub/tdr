@@ -40,7 +40,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     ref.listenManual(hardwareServiceProvider, (prev, next) {
       next.whenData((button) {
         if (button == VolumeButton.up) {
-          _inputFocus.requestFocus();
+          _openPenTool();
           AudioService.play(AudioEffect.create);
           HapticFeedback.lightImpact();
         } else if (button == VolumeButton.down) {
@@ -88,6 +88,41 @@ class _HomePageState extends ConsumerState<HomePage> {
     });
     AudioService.play(AudioEffect.create);
     HapticFeedback.mediumImpact();
+
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _openPenTool() {
+    final scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: scheme.surface,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: _buildInputArea(scheme),
+        );
+      },
+    ).then((_) {
+      // Clear when closed
+      _inputCtrl.clear();
+      setState(() {
+        _parsedDate = null;
+        _datePreview = null;
+      });
+    });
+    // Request focus after a tiny delay so the sheet can build
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _inputFocus.requestFocus();
+    });
   }
 
   @override
@@ -100,6 +135,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: scheme.surface,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openPenTool,
+        child: const Icon(Icons.edit),
+      ),
       body: SafeArea(
         child: Stack(
           children: [
@@ -107,7 +146,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             Positioned.fill(
               child: GestureDetector(
                 onTap: () {
-                  _inputFocus.requestFocus();
+                  // Future: Clear selection
                   HapticFeedback.selectionClick();
                 },
                 child: InteractiveViewer(
@@ -169,27 +208,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 ),
                 child: _buildHeader(isDailyFocus),
-              ),
-            ),
-
-            // Pinned Input Area
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      scheme.surface,
-                      scheme.surface.withValues(alpha: 0.0),
-                    ],
-                  ),
-                ),
-                child: _buildInputArea(scheme),
               ),
             ),
           ],
@@ -276,6 +294,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             border: InputBorder.none,
           ),
         ),
+        const SizedBox(height: 16), // Extra padding for bottom sheet
       ],
     );
   }
