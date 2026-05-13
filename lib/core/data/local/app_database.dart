@@ -17,6 +17,9 @@ class Todos extends Table {
   RealColumn get posX => real().withDefault(const Constant(0.0))();
   RealColumn get posY => real().withDefault(const Constant(0.0))();
   RealColumn get rotation => real().withDefault(const Constant(0.0))();
+  RealColumn get width => real().withDefault(const Constant(250.0))();
+  RealColumn get height => real().nullable()();
+  IntColumn get colorIndex => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -36,7 +39,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -50,6 +53,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(todos, todos.posX);
             await m.addColumn(todos, todos.posY);
             await m.addColumn(todos, todos.rotation);
+          }
+          if (from < 4) {
+            await m.addColumn(todos, todos.width);
+            await m.addColumn(todos, todos.height);
+            await m.addColumn(todos, todos.colorIndex);
           }
         },
       );
