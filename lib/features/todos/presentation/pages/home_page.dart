@@ -93,6 +93,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final isDailyFocus = ref.watch(dailyFocusProvider);
+    final draggingId = ref.watch(draggingTodoIdProvider);
+    final isDragging = draggingId != null;
     final todosAsync = ref.watch(todoStreamProvider(filter: TodoFilter.active));
     final scheme = Theme.of(context).colorScheme;
 
@@ -113,6 +115,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   boundaryMargin: const EdgeInsets.all(4000),
                   minScale: 0.2,
                   maxScale: 3.0,
+                  panEnabled: !isDragging,
+                  scaleEnabled: !isDragging,
                   child: Center(
                     child: SizedBox(
                       width: 2000,
@@ -121,11 +125,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                         data: (list) {
                           final filtered =
                               isDailyFocus ? _filterForToday(list) : list;
+
+                          // Managed Z-index: Active dragging item stays on top
                           return Stack(
                             clipBehavior: Clip.none,
-                            children: filtered
-                                .map((todo) => TodoTile(todo: todo))
-                                .toList(),
+                            children: [
+                              ...filtered
+                                  .where((t) => t.id != draggingId)
+                                  .map((todo) => TodoTile(
+                                      key: ValueKey(todo.id), todo: todo)),
+                              if (isDragging)
+                                ...filtered
+                                    .where((t) => t.id == draggingId)
+                                    .map((todo) => TodoTile(
+                                        key: ValueKey(todo.id), todo: todo)),
+                            ],
                           );
                         },
                         loading: () =>
