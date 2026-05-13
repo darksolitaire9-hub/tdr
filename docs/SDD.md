@@ -106,6 +106,7 @@ ProviderScope
   taskParserServiceProvider              ← NLP logic
   spatialGridProvider                    ← $O(1)$ collision mapping
   snapDisplacementProvider               ← Active magnetic snap offsets
+  selectedTodoIdProvider                 ← Tracks currently selected sticker ($O(1)$ lookup)
 ```
 
 ### 4.2 UI Flow (Canvas)
@@ -115,12 +116,12 @@ ProviderScope
 | **Magnetic Moodboard** | `InteractiveViewer` + `Stack` | Spatial canvas where stickers align dynamically. |
 | **Focus Mode** | `HomePage` (Filtered) | Shows only tasks scheduled for "Today" |
 
-**Interaction Pattern:**
-- **Magnetic Snapping:** Dragging a sticker close to another snaps it into axial alignment (Figma-style smart guides), enabling neat clustering and stacking.
-- **Sensory Redundancy:** Snapping triggers visual elevation, audio sliding, and sharp haptic ticks.
-- **Double Tap:** Toggle completion (strikethrough).
-- **Long Press:** Delete sticker.
-- **Hardware Up:** Open input focus + Play "Create" sound.
+**Interaction Pattern (Selection Paradigm):**
+- **The Pen Tool:** A Floating Action Button opens a bottom sheet for NLP-driven task creation, reclaiming 100% of the canvas.
+- **Selection State:** Tapping a sticker selects it ($O(1)$ operation), revealing a dashed bounding box and a floating mini-toolbar. Tapping the canvas clears selection.
+- **Inline Editing:** Selecting a sticker and tapping "Edit" (or double-tapping) seamlessly swaps the text for an inline `TextField`, keeping the user in context.
+- **Magnetic Snapping:** Dragging a sticker close to another snaps it into axial alignment (Figma-style smart guides).
+- **Sensory Redundancy:** Interactions trigger visual elevation, audio sliding, and sharp haptic ticks.
 
 ---
 
