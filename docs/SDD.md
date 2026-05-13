@@ -105,19 +105,19 @@ ProviderScope
   hardwareServiceProvider                ← Volume button stream
   taskParserServiceProvider              ← NLP logic
   spatialGridProvider                    ← $O(1)$ collision mapping
-  collisionDisplacementsProvider         ← Active kinetic push vectors
+  snapDisplacementProvider               ← Active magnetic snap offsets
 ```
 
 ### 4.2 UI Flow (Canvas)
 
 | View | Widget | Purpose |
 |-------|--------|---------|
-| **Kinetic Moodboard** | `InteractiveViewer` + `Stack` | Spatial canvas where stickers physically interact. |
+| **Magnetic Moodboard** | `InteractiveViewer` + `Stack` | Spatial canvas where stickers align dynamically. |
 | **Focus Mode** | `HomePage` (Filtered) | Shows only tasks scheduled for "Today" |
 
 **Interaction Pattern:**
-- **Kinetic Drag:** Dragging a sticker smoothly pushes neighboring stickers out of the way.
-- **Sensory Redundancy:** Dragging triggers visual elevation, audio sliding, and haptic ticks.
+- **Magnetic Snapping:** Dragging a sticker close to another snaps it into axial alignment (Figma-style smart guides), enabling neat clustering and stacking.
+- **Sensory Redundancy:** Snapping triggers visual elevation, audio sliding, and sharp haptic ticks.
 - **Double Tap:** Toggle completion (strikethrough).
 - **Long Press:** Delete sticker.
 - **Hardware Up:** Open input focus + Play "Create" sound.
@@ -133,11 +133,11 @@ ProviderScope
 | Stickers | Pink, Blue, Yellow, Green, Purple | High-contrast playful palette |
 | Font (Short) | Space Grotesk (Bold) | Loud, punchy for brief thoughts |
 | Font (Long) | Caveat | Personal, handwritten feel for notes |
-| The Sensory Triad | Visual (Scale/Shadow) + Haptic (Impact) + Audio | Multisensory redundancy ensures interaction feels "real" and is accessible. |
+| The Sensory Triad | Visual (Scale/Shadow) + Haptic (Snap/Impact) + Audio | Multisensory redundancy ensures interaction feels "real" and is accessible. |
 
 ### 5.2 Kinetic Typography & Animation
 
-Stickers dynamically scale font size based on length. When a sticker is "pushed" by another, it utilizes an `AnimatedScale` (0.95x) to create a visual "squash" effect, providing immediate tactile feedback.
+Stickers dynamically scale font size based on length. When dragged, the sticker uses `AnimatedScale` (1.05x) to create a visual "lift" effect, and perfectly locks into place when a magnetic snap engages.
 
 ---
 
@@ -146,9 +146,10 @@ Stickers dynamically scale font size based on length. When a sticker is "pushed"
 | Concern | Approach |
 |---------|----------|
 | Canvas Performance | `InteractiveViewer` with `TransformationController`. Panning/Scaling locks during drag. |
-| Collision Detection | **Spatial Hash Grid:** Reduces $O(N^2)$ collision checks to $O(k)$, maintaining 60 FPS for hundreds of stickers. |
+| Snap Detection | **Spatial Hash Grid:** Reduces $O(N^2)$ proximity checks to $O(k)$, maintaining 60 FPS while dragging around hundreds of stickers. |
 | DB reactivity | Drift streams — only changed queries re-emit |
-| State Granularity | `updatePosition` uses debounced or per-drop updates. Temporary displacements are handled entirely in memory (`dragOffsetProvider`). |
+| State Granularity | `updatePosition` uses debounced or per-drop updates. Temporary snap offsets are handled entirely in memory (`snapDisplacementProvider`). |
+
 
 ---
 
