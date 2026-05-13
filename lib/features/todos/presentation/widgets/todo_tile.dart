@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/todo.dart';
 import '../../../../services/audio_service.dart';
+import '../../../../services/collision_service.dart';
 import '../providers/todo_provider.dart';
 
 class TodoTile extends ConsumerWidget {
@@ -17,10 +18,18 @@ class TodoTile extends ConsumerWidget {
     final draggingId = ref.watch(draggingTodoIdProvider);
     final isDragging = draggingId == todo.id;
     final dragOffset = isDragging ? ref.watch(dragOffsetProvider) : Offset.zero;
+    final displacements = ref.watch(collisionDisplacementsProvider);
 
-    // The live position is the stored DB position plus any active drag delta
-    final x = todo.posX + dragOffset.dx;
-    final y = todo.posY + dragOffset.dy;
+    // Apply push displacement if this item is being shoved by another
+    final pushOffset = displacements[todo.id] ?? Offset.zero;
+    final isPushed = pushOffset != Offset.zero;
+
+    // The live position is the stored DB position + active drag delta + push displacement
+    final x = todo.posX + dragOffset.dx + pushOffset.dx;
+    final y = todo.posY + dragOffset.dy + pushOffset.dy;
+
+    // Visual Recoil (Squash) when pushed
+    final scale = isPushed ? 0.95 : (isDragging ? 1.05 : 1.0);
 
     // Playful sticker styling
     final stickerColors = [
@@ -46,74 +55,110 @@ class TodoTile extends ConsumerWidget {
       top: y,
       child: Transform.rotate(
         angle: todo.rotation,
-        child: Listener(
-          onPointerDown: (event) {
-            ref.read(draggingTodoIdProvider.notifier).set(todo.id);
-            ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-          },
-          onPointerMove: (event) {
-            if (isDragging) {
-              final current = ref.read(dragOffsetProvider);
-              ref.read(dragOffsetProvider.notifier).set(current + event.delta);
-            }
-          },
-          onPointerUp: (event) {
-            if (isDragging) {
-              ref
-                  .read(todoActionsProvider.notifier)
-                  .updatePosition(todo.id, x, y);
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOutBack,
+          child: Listener(
+            onPointerDown: (event) async {
+              ref.read(draggingTodoIdProvider.notifier).set(todo.id);
+              ref.read(dragOffsetProvider.notifier).set(Offset.zero);
+              HapticFeedback.selectionClick();
+              
+              // Ensure spatial grid is ready for collision checks
+              final positions = await ref.read(allTodoPositionsProvider.future);
+              ref.read(spatialGridProvider.notifier).rebuild(positions);
+            },
+            onPointerMove: (event) async {
+              if (isDragging) {
+                final current = ref.read(dragOffsetProvider);
+                final newOffset = current + event.delta;
+                ref.read(dragOffsetProvider.notifier).set(newOffset);
+
+                // Kinetic Physics: Push neighbors
+                final allPos = await ref.read(allTodoPositionsProvider.future);
+                final grid = ref.read(spatialGridProvider);
+                final livePos = Offset(todo.posX + newOffset.dx, todo.posY + newOffset.dy);
+                
+                ref.read(collisionDisplacementsProvider.notifier).calculatePush(
+                  todo.id, livePos, allPos, grid
+                );
+
+                // Velocity-linked sensory feedback could go here (e.g. tracking dt and delta)
+              }
+            },
+            onPointerUp: (event) {
+              if (isDragging) {
+                // Save this item's new position
+                ref.read(todoActionsProvider.notifier).updatePosition(todo.id, x, y);
+                
+                // Save pushed items' positions
+                final activeDisplacements = ref.read(collisionDisplacementsProvider);
+                for (final entry in activeDisplacements.entries) {
+                  final pushedId = entry.key;
+                  final pushVec = entry.value;
+                  ref.read(todoActionsProvider.notifier).updatePosition(
+                    pushedId, 
+                    todo.posX + pushVec.dx, // Ideally we query its base pos, but for simplicity: Let the DB stream catch up or resolve it via a batch action.
+                    todo.posY + pushVec.dy
+                  );
+                }
+
+                ref.read(draggingTodoIdProvider.notifier).set(null);
+                ref.read(dragOffsetProvider.notifier).set(Offset.zero);
+                ref.read(collisionDisplacementsProvider.notifier).clear();
+                
+                HapticFeedback.lightImpact();
+                AudioService.play(AudioEffect.select);
+              }
+            },
+            onPointerCancel: (event) {
               ref.read(draggingTodoIdProvider.notifier).set(null);
               ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-              HapticFeedback.lightImpact();
-            }
-          },
-          onPointerCancel: (event) {
-            ref.read(draggingTodoIdProvider.notifier).set(null);
-            ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-          },
-          child: GestureDetector(
-            onDoubleTap: () {
-              ref.read(todoActionsProvider.notifier).toggle(todo.id);
-              HapticFeedback.mediumImpact();
-              AudioService.play(AudioEffect.check);
+              ref.read(collisionDisplacementsProvider.notifier).clear();
             },
-            onLongPress: () {
-              ref.read(todoActionsProvider.notifier).delete(todo.id);
-              HapticFeedback.heavyImpact();
-              AudioService.play(AudioEffect.delete);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              constraints: const BoxConstraints(maxWidth: 250),
-              decoration: BoxDecoration(
-                color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        Colors.black.withValues(alpha: isDragging ? 0.2 : 0.1),
-                    blurRadius: isDragging ? 8 : 4,
-                    offset:
-                        isDragging ? const Offset(4, 4) : const Offset(2, 2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  Text(
-                    todo.title,
-                    style: font.copyWith(fontSize: fontSize),
-                  ),
-                  if (todo.isCompleted)
-                    Positioned.fill(
-                      child: Center(
-                        child: Container(
-                          height: 4,
-                          width: double.infinity,
-                          color: Colors.redAccent.withValues(alpha: 0.6),
+            child: GestureDetector(
+              onDoubleTap: () {
+                ref.read(todoActionsProvider.notifier).toggle(todo.id);
+                HapticFeedback.mediumImpact();
+                AudioService.play(AudioEffect.check);
+              },
+              onLongPress: () {
+                ref.read(todoActionsProvider.notifier).delete(todo.id);
+                HapticFeedback.heavyImpact();
+                AudioService.play(AudioEffect.delete);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                constraints: const BoxConstraints(maxWidth: 250),
+                decoration: BoxDecoration(
+                  color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDragging ? 0.3 : 0.1),
+                      blurRadius: isDragging ? 12 : 4,
+                      offset: isDragging ? const Offset(8, 8) : const Offset(2, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    Text(
+                      todo.title,
+                      style: font.copyWith(fontSize: fontSize),
+                    ),
+                    if (todo.isCompleted)
+                      Positioned.fill(
+                        child: Center(
+                          child: Container(
+                            height: 4,
+                            width: double.infinity,
+                            color: Colors.redAccent.withValues(alpha: 0.6),
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

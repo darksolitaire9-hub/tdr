@@ -34,6 +34,12 @@ Stream<List<Todo>> todoStream(
         );
 
 @riverpod
+Future<Map<String, Offset>> allTodoPositions(Ref ref) async {
+  final todos = await ref.watch(todoStreamProvider(filter: TodoFilter.active).future);
+  return {for (final t in todos) t.id: Offset(t.posX, t.posY)};
+}
+
+@riverpod
 class TodoActions extends _$TodoActions {
   @override
   void build() {}
