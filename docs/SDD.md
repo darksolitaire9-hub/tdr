@@ -104,21 +104,23 @@ ProviderScope
   dailyFocusProvider                     ← Toggle for "Today" view
   hardwareServiceProvider                ← Volume button stream
   taskParserServiceProvider              ← NLP logic
+  spatialGridProvider                    ← $O(1)$ collision mapping
+  collisionDisplacementsProvider         ← Active kinetic push vectors
 ```
 
 ### 4.2 UI Flow (Canvas)
 
 | View | Widget | Purpose |
 |-------|--------|---------|
-| **Moodboard** | `InteractiveViewer` + `Stack` | Infinite spatial canvas for all active tasks |
+| **Kinetic Moodboard** | `InteractiveViewer` + `Stack` | Spatial canvas where stickers physically interact. |
 | **Focus Mode** | `HomePage` (Filtered) | Shows only tasks scheduled for "Today" |
 
 **Interaction Pattern:**
-- **Pan:** Drag stickers to move them on the canvas (`updatePosition`).
+- **Kinetic Drag:** Dragging a sticker smoothly pushes neighboring stickers out of the way.
+- **Sensory Redundancy:** Dragging triggers visual elevation, audio sliding, and haptic ticks.
 - **Double Tap:** Toggle completion (strikethrough).
 - **Long Press:** Delete sticker.
 - **Hardware Up:** Open input focus + Play "Create" sound.
-- **Hardware Down:** Toggle "Daily Focus" mode.
 
 ---
 
@@ -131,11 +133,11 @@ ProviderScope
 | Stickers | Pink, Blue, Yellow, Green, Purple | High-contrast playful palette |
 | Font (Short) | Space Grotesk (Bold) | Loud, punchy for brief thoughts |
 | Font (Long) | Caveat | Personal, handwritten feel for notes |
-| Feedback | Haptics + Audio | Tactile satisfaction for spatial actions |
+| The Sensory Triad | Visual (Scale/Shadow) + Haptic (Impact) + Audio | Multisensory redundancy ensures interaction feels "real" and is accessible. |
 
-### 5.2 Dynamic Typography
+### 5.2 Kinetic Typography & Animation
 
-Stickers dynamically scale font size and switch families based on title length to maintain visual interest and readability in a free-form canvas.
+Stickers dynamically scale font size based on length. When a sticker is "pushed" by another, it utilizes an `AnimatedScale` (0.95x) to create a visual "squash" effect, providing immediate tactile feedback.
 
 ---
 
@@ -143,10 +145,10 @@ Stickers dynamically scale font size and switch families based on title length t
 
 | Concern | Approach |
 |---------|----------|
-| Canvas Performance | `InteractiveViewer` with `TransformationController` |
+| Canvas Performance | `InteractiveViewer` with `TransformationController`. Panning/Scaling locks during drag. |
+| Collision Detection | **Spatial Hash Grid:** Reduces $O(N^2)$ collision checks to $O(k)$, maintaining 60 FPS for hundreds of stickers. |
 | DB reactivity | Drift streams — only changed queries re-emit |
-| Audio/Haptics | Pre-cached audio effects for zero-latency feedback |
-| State Granularity | `updatePosition` uses debounced or per-drop updates to minimize DB writes |
+| State Granularity | `updatePosition` uses debounced or per-drop updates. Temporary displacements are handled entirely in memory (`dragOffsetProvider`). |
 
 ---
 
