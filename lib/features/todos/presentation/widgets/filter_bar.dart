@@ -37,4 +37,3 @@ class FilterBar extends StatelessWidget {
         TodoFilter.completed => 'Done',
       };
 }
-

@@ -48,13 +48,16 @@ class _TodoTileState extends ConsumerState<TodoTile> {
       AppColors.stickerPurple,
     ];
     // Deterministic color based on id hash
-    final stickerColor = stickerColors[widget.todo.id.hashCode % stickerColors.length];
-    
+    final stickerColor =
+        stickerColors[widget.todo.id.hashCode % stickerColors.length];
+
     // Dynamic font size: short tasks are loud/big, long tasks are detailed/small.
     final double fontSize = widget.todo.title.length < 15 ? 32 : 18;
-    final font = widget.todo.title.length < 20 
-        ? GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, color: Colors.black87)
-        : GoogleFonts.caveat(fontWeight: FontWeight.w600, color: Colors.black87);
+    final font = widget.todo.title.length < 20
+        ? GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.w900, color: Colors.black87)
+        : GoogleFonts.caveat(
+            fontWeight: FontWeight.w600, color: Colors.black87);
 
     return Positioned(
       left: _x,
@@ -71,7 +74,9 @@ class _TodoTileState extends ConsumerState<TodoTile> {
           },
           onPanEnd: (_) {
             setState(() => _isDragging = false);
-            ref.read(todoActionsProvider.notifier).updatePosition(widget.todo.id, _x, _y);
+            ref
+                .read(todoActionsProvider.notifier)
+                .updatePosition(widget.todo.id, _x, _y);
             HapticFeedback.lightImpact();
           },
           onDoubleTap: () {

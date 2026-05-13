@@ -17,9 +17,9 @@ class TodoRepositoryImpl implements ITodoRepository {
     String? searchQuery,
   }) {
     final bool? completed = switch (filter) {
-      TodoFilter.active    => false,
+      TodoFilter.active => false,
       TodoFilter.completed => true,
-      TodoFilter.all       => null,
+      TodoFilter.all => null,
     };
     return _db
         .watchTodos(completed: completed, search: searchQuery)
@@ -42,33 +42,33 @@ class TodoRepositoryImpl implements ITodoRepository {
   Future<void> createTodo(Todo todo) {
     final id = todo.id.isEmpty ? _uuid.v4() : todo.id;
     return _db.insertTodo(TodosCompanion.insert(
-      id:          id,
-      title:       todo.title.trim(),
+      id: id,
+      title: todo.title.trim(),
       description: Value(todo.description.trim()),
-      priority:    Value(todo.priority.name),
-      createdAt:   todo.createdAt,
+      priority: Value(todo.priority.name),
+      createdAt: todo.createdAt,
       scheduledAt: Value(todo.scheduledAt),
-      recurrence:  Value(todo.recurrence?.name),
-      posX:        Value(todo.posX),
-      posY:        Value(todo.posY),
-      rotation:    Value(todo.rotation),
+      recurrence: Value(todo.recurrence?.name),
+      posX: Value(todo.posX),
+      posY: Value(todo.posY),
+      rotation: Value(todo.rotation),
     ));
   }
 
   @override
   Future<void> updateTodo(Todo todo) {
     return _db.updateTodoById(TodosCompanion(
-      id:          Value(todo.id),
-      title:       Value(todo.title.trim()),
+      id: Value(todo.id),
+      title: Value(todo.title.trim()),
       description: Value(todo.description.trim()),
-      priority:    Value(todo.priority.name),
+      priority: Value(todo.priority.name),
       isCompleted: Value(todo.isCompleted),
       completedAt: Value(todo.completedAt),
       scheduledAt: Value(todo.scheduledAt),
-      recurrence:  Value(todo.recurrence?.name),
-      posX:        Value(todo.posX),
-      posY:        Value(todo.posY),
-      rotation:    Value(todo.rotation),
+      recurrence: Value(todo.recurrence?.name),
+      posX: Value(todo.posX),
+      posY: Value(todo.posY),
+      rotation: Value(todo.rotation),
     ));
   }
 
@@ -96,20 +96,19 @@ class TodoRepositoryImpl implements ITodoRepository {
       text.toLowerCase().trim().replaceAll(RegExp(r'[^\w\s]'), '');
 
   Todo _toDomain(TodoData d) => Todo(
-        id:          d.id,
-        title:       d.title,
+        id: d.id,
+        title: d.title,
         description: d.description,
         isCompleted: d.isCompleted,
-        priority:    TodoPriority.values.byName(d.priority),
-        createdAt:   d.createdAt,
+        priority: TodoPriority.values.byName(d.priority),
+        createdAt: d.createdAt,
         completedAt: d.completedAt,
         scheduledAt: d.scheduledAt,
-        recurrence:  d.recurrence != null
+        recurrence: d.recurrence != null
             ? TodoRecurrence.values.byName(d.recurrence!)
             : null,
-        posX:        d.posX,
-        posY:        d.posY,
-        rotation:    d.rotation,
+        posX: d.posX,
+        posY: d.posY,
+        rotation: d.rotation,
       );
 }
-

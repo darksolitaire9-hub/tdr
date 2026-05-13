@@ -27,8 +27,7 @@ class _EmptyStateState extends State<EmptyState>
 
     // Widget fades in over 400ms (mapped to controller 0.22→0.67)
     _wrap = CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.22, 0.67, curve: Curves.easeIn));
+        parent: _ctrl, curve: const Interval(0.22, 0.67, curve: Curves.easeIn));
 
     // Checkmark draws over 500ms with elastic overshoot (0.22→0.78)
     _path = CurvedAnimation(
@@ -37,8 +36,7 @@ class _EmptyStateState extends State<EmptyState>
 
     // "All clear." fades in after 200ms delay (0.44→0.78)
     _text = CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.44, 0.78, curve: Curves.easeIn));
+        parent: _ctrl, curve: const Interval(0.44, 0.78, curve: Curves.easeIn));
 
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) _ctrl.forward();
@@ -108,10 +106,10 @@ class _CheckmarkPainter extends CustomPainter {
     if (progress <= 0) return;
 
     final paint = Paint()
-      ..color      = color
+      ..color = color
       ..strokeWidth = 2.5
-      ..strokeCap  = StrokeCap.round
-      ..style      = PaintingStyle.stroke;
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
 
     // Hand-drawn checkmark: short downstroke (bezier imperfection) + long upstroke.
     final path = Path()
@@ -171,4 +169,3 @@ class _SimpleEmpty extends StatelessWidget {
     );
   }
 }
-

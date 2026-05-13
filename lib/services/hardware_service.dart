@@ -13,7 +13,7 @@ class HardwareService extends _$HardwareService {
   @override
   Stream<VolumeButton> build() {
     final streamController = StreamController<VolumeButton>();
-    
+
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'volumeUp') {
         streamController.add(VolumeButton.up);

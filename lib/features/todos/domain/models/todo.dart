@@ -2,8 +2,10 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'todo.freezed.dart';
 
-enum TodoPriority  { low, medium, high }
-enum TodoFilter    { all, active, completed }
+enum TodoPriority { low, medium, high }
+
+enum TodoFilter { all, active, completed }
+
 enum TodoRecurrence { daily, weekly }
 
 @freezed
@@ -24,4 +26,3 @@ sealed class Todo with _$Todo {
     @Default(0.0) double rotation,
   }) = _Todo;
 }
-

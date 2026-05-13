@@ -16,4 +16,3 @@ AppDatabase appDatabase(Ref ref) {
 @Riverpod(keepAlive: true)
 ITodoRepository todoRepository(Ref ref) =>
     TodoRepositoryImpl(ref.watch(appDatabaseProvider));
-

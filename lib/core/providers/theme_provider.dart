@@ -34,4 +34,3 @@ class AppThemeMode extends _$AppThemeMode {
         state == ThemeMode.light ? ThemeMode.dark : ThemeMode.light,
       );
 }
-

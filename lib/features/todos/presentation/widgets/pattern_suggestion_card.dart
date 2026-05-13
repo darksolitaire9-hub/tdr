@@ -28,11 +28,11 @@ class _PatternSuggestionCardState extends State<PatternSuggestionCard>
   @override
   void initState() {
     super.initState();
-    _ctrl  = AnimationController(
+    _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 300));
-    _slide = Tween<double>(begin: 20, end: 0).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<double>(begin: 20, end: 0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _ctrl.forward();
   }
 
@@ -50,14 +50,14 @@ class _PatternSuggestionCardState extends State<PatternSuggestionCard>
       animation: _ctrl,
       builder: (_, child) => Transform.translate(
         offset: Offset(0, _slide.value),
-        child:  Opacity(opacity: _fade.value, child: child),
+        child: Opacity(opacity: _fade.value, child: child),
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(12, 10, 8, 4),
         decoration: BoxDecoration(
-          color:        scheme.surface,
-          border:       Border.all(color: scheme.outline),
+          color: scheme.surface,
+          border: Border.all(color: scheme.outline),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -82,17 +82,19 @@ class _PatternSuggestionCardState extends State<PatternSuggestionCard>
                   ),
                   Row(
                     children: [
-                      _pill('Daily',  () => widget.onSetRecurrence(TodoRecurrence.daily)),
-                      _pill('Weekly', () => widget.onSetRecurrence(TodoRecurrence.weekly)),
+                      _pill('Daily',
+                          () => widget.onSetRecurrence(TodoRecurrence.daily)),
+                      _pill('Weekly',
+                          () => widget.onSetRecurrence(TodoRecurrence.weekly)),
                     ],
                   ),
                 ],
               ),
             ),
             IconButton(
-              icon:        const Icon(Icons.close, size: 16),
-              onPressed:   widget.onDismiss,
-              padding:     EdgeInsets.zero,
+              icon: const Icon(Icons.close, size: 16),
+              onPressed: widget.onDismiss,
+              padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
           ],
@@ -103,13 +105,12 @@ class _PatternSuggestionCardState extends State<PatternSuggestionCard>
 
   Widget _pill(String label, VoidCallback onTap) => TextButton(
         style: TextButton.styleFrom(
-          padding:         const EdgeInsets.symmetric(horizontal: 8),
-          minimumSize:     Size.zero,
-          tapTargetSize:   MaterialTapTargetSize.shrinkWrap,
-          textStyle:       GoogleFonts.dmSans(fontSize: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: GoogleFonts.dmSans(fontSize: 13),
         ),
         onPressed: onTap,
-        child:     Text(label),
+        child: Text(label),
       );
 }
-

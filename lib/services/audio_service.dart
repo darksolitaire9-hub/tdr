@@ -4,10 +4,10 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 
 enum AudioEffect {
-  check,   // Pencil scratch
-  delete,  // Paper rustle
-  create,  // Wood knock
-  select,  // Pebble drop
+  check, // Pencil scratch
+  delete, // Paper rustle
+  create, // Wood knock
+  select, // Pebble drop
 }
 
 class AudioService {
@@ -18,9 +18,9 @@ class AudioService {
 
   static Future<void> play(AudioEffect effect) async {
     if (!enabled) return;
-    
+
     _cache[effect] ??= _buildWav(_generateSamples(effect));
-    
+
     try {
       await _player.play(BytesSource(_cache[effect]!));
     } catch (_) {
@@ -35,13 +35,16 @@ class AudioService {
         return _generateNoise(durationMs: 120, modFreq: 3000, gain: 0.3);
       case AudioEffect.delete:
         // Paper rustle: longer, lower noise burst
-        return _generateNoise(durationMs: 300, modFreq: 800, gain: 0.25, decayK: 4.0);
+        return _generateNoise(
+            durationMs: 300, modFreq: 800, gain: 0.25, decayK: 4.0);
       case AudioEffect.create:
         // Wood knock: resonant sine pulse
-        return _generateTone(durationMs: 100, freq: 220, gain: 0.5, resonance: 0.2);
+        return _generateTone(
+            durationMs: 100, freq: 220, gain: 0.5, resonance: 0.2);
       case AudioEffect.select:
         // Pebble drop: high pitch clack
-        return _generateTone(durationMs: 60, freq: 880, gain: 0.4, resonance: 0.1);
+        return _generateTone(
+            durationMs: 60, freq: 880, gain: 0.4, resonance: 0.1);
     }
   }
 
@@ -89,11 +92,11 @@ class AudioService {
   }
 
   static Uint8List _buildWav(Int16List samples) {
-    const sampleRate     = 44100;
-    const numChannels    = 1;
-    const bitsPerSample  = 16;
-    final dataBytes      = samples.length * 2;
-    final buf            = ByteData(44 + dataBytes);
+    const sampleRate = 44100;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    final dataBytes = samples.length * 2;
+    final buf = ByteData(44 + dataBytes);
     var o = 0;
 
     void str(String s) {
@@ -104,18 +107,28 @@ class AudioService {
     }
 
     str('RIFF');
-    buf.setUint32(o, 36 + dataBytes, Endian.little); o += 4;
+    buf.setUint32(o, 36 + dataBytes, Endian.little);
+    o += 4;
     str('WAVE');
     str('fmt ');
-    buf.setUint32(o, 16, Endian.little);             o += 4;
-    buf.setUint16(o, 1, Endian.little);              o += 2;
-    buf.setUint16(o, numChannels, Endian.little);    o += 2;
-    buf.setUint32(o, sampleRate, Endian.little);     o += 4;
-    buf.setUint32(o, sampleRate * numChannels * bitsPerSample ~/ 8, Endian.little); o += 4;
-    buf.setUint16(o, numChannels * bitsPerSample ~/ 8, Endian.little); o += 2;
-    buf.setUint16(o, bitsPerSample, Endian.little);  o += 2;
+    buf.setUint32(o, 16, Endian.little);
+    o += 4;
+    buf.setUint16(o, 1, Endian.little);
+    o += 2;
+    buf.setUint16(o, numChannels, Endian.little);
+    o += 2;
+    buf.setUint32(o, sampleRate, Endian.little);
+    o += 4;
+    buf.setUint32(
+        o, sampleRate * numChannels * bitsPerSample ~/ 8, Endian.little);
+    o += 4;
+    buf.setUint16(o, numChannels * bitsPerSample ~/ 8, Endian.little);
+    o += 2;
+    buf.setUint16(o, bitsPerSample, Endian.little);
+    o += 2;
     str('data');
-    buf.setUint32(o, dataBytes, Endian.little);      o += 4;
+    buf.setUint32(o, dataBytes, Endian.little);
+    o += 4;
     for (final s in samples) {
       buf.setInt16(o, s, Endian.little);
       o += 2;
@@ -123,4 +136,3 @@ class AudioService {
     return buf.buffer.asUint8List();
   }
 }
-

@@ -15,9 +15,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/todo/edit/:id',
-      builder: (_, state) =>
-          TodoFormPage(todoId: state.pathParameters['id']),
+      builder: (_, state) => TodoFormPage(todoId: state.pathParameters['id']),
     ),
   ],
 );
-

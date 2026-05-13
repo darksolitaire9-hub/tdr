@@ -126,12 +126,10 @@ void main() {
     });
 
     test('trims whitespace from title', () async {
-      await repo.createTodo(
-          Todo(id: '', title: '  Hello  ', createdAt: ts));
+      await repo.createTodo(Todo(id: '', title: '  Hello  ', createdAt: ts));
       final cap = verify(() => db.insertTodo(captureAny())).captured.single
           as TodosCompanion;
       expect(cap.title.value, 'Hello');
     });
   });
 }
-

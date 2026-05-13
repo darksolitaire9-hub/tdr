@@ -5,4 +5,3 @@ abstract final class PatternService {
   static String normalize(String text) =>
       text.toLowerCase().trim().replaceAll(RegExp(r'[^\w\s]'), '');
 }
-

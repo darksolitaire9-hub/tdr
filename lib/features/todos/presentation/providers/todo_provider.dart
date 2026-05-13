@@ -13,7 +13,7 @@ Stream<List<Todo>> todoStream(
   String? search,
 }) =>
     ref.watch(todoRepositoryProvider).watchTodos(
-          filter:      filter,
+          filter: filter,
           searchQuery: search,
         );
 
@@ -31,22 +31,23 @@ class TodoActions extends _$TodoActions {
     DateTime? scheduledAt,
   }) async {
     final repo = ref.read(todoRepositoryProvider);
-    
+
     // Random placement within a central zone (0-300 range)
-    final posX     = _rng.nextDouble() * 200 + 50; 
-    final posY     = _rng.nextDouble() * 200 + 100;
-    final rotation = (_rng.nextDouble() - 0.5) * 0.2; // ±0.1 radians (~5.7 degrees)
+    final posX = _rng.nextDouble() * 200 + 50;
+    final posY = _rng.nextDouble() * 200 + 100;
+    final rotation =
+        (_rng.nextDouble() - 0.5) * 0.2; // ±0.1 radians (~5.7 degrees)
 
     await repo.createTodo(Todo(
-      id:          '',
-      title:       title,
+      id: '',
+      title: title,
       description: description,
-      priority:    priority,
-      createdAt:   DateTime.now(),
+      priority: priority,
+      createdAt: DateTime.now(),
       scheduledAt: scheduledAt,
-      posX:        posX,
-      posY:        posY,
-      rotation:    rotation,
+      posX: posX,
+      posY: posY,
+      rotation: rotation,
     ));
     await repo.recordTaskText(title);
   }
@@ -67,4 +68,3 @@ class TodoActions extends _$TodoActions {
   Future<void> toggle(String id) =>
       ref.read(todoRepositoryProvider).toggleCompletion(id);
 }
-

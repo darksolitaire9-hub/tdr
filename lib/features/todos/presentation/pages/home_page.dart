@@ -119,13 +119,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                       height: 2000,
                       child: todosAsync.when(
                         data: (list) {
-                          final filtered = isDailyFocus ? _filterForToday(list) : list;
+                          final filtered =
+                              isDailyFocus ? _filterForToday(list) : list;
                           return Stack(
                             clipBehavior: Clip.none,
-                            children: filtered.map((todo) => TodoTile(todo: todo)).toList(),
+                            children: filtered
+                                .map((todo) => TodoTile(todo: todo))
+                                .toList(),
                           );
                         },
-                        loading: () => const Center(child: CircularProgressIndicator()),
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
                         error: (e, _) => Center(child: Text('Error: $e')),
                       ),
                     ),
@@ -133,7 +137,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
             ),
-            
+
             // Fixed Header overlay
             Positioned(
               top: 0,
@@ -195,7 +199,10 @@ class _HomePageState extends ConsumerState<HomePage> {
             isDailyFocus ? 'Focused on the now.' : 'Clutter yet freedom.',
             style: GoogleFonts.lora(
               fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.6),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -209,7 +216,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     final today = DateTime(now.year, now.month, now.day);
     return list.where((t) {
       if (t.scheduledAt == null) return false;
-      final target = DateTime(t.scheduledAt!.year, t.scheduledAt!.month, t.scheduledAt!.day);
+      final target = DateTime(
+          t.scheduledAt!.year, t.scheduledAt!.month, t.scheduledAt!.day);
       return target == today;
     }).toList();
   }
@@ -227,7 +235,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                 const SizedBox(width: 4),
                 Text(
                   _datePreview!,
-                  style: GoogleFonts.spaceGrotesk(fontSize: 13, color: scheme.primary, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.spaceGrotesk(
+                      fontSize: 13,
+                      color: scheme.primary,
+                      fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -243,7 +254,10 @@ class _HomePageState extends ConsumerState<HomePage> {
             hintText: 'Drop a thought...',
             hintStyle: GoogleFonts.caveat(
               fontSize: 28,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.3),
             ),
             border: InputBorder.none,
           ),

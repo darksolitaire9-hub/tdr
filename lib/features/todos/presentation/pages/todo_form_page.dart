@@ -32,9 +32,8 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   }
 
   Future<void> _load() async {
-    final todo = await ref
-        .read(todoRepositoryProvider)
-        .getTodoById(widget.todoId!);
+    final todo =
+        await ref.read(todoRepositoryProvider).getTodoById(widget.todoId!);
     if (todo != null && mounted) {
       setState(() {
         _existing = todo;
@@ -168,8 +167,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
                 ),
               ],
               selected: {_priority},
-              onSelectionChanged: (s) =>
-                  setState(() => _priority = s.first),
+              onSelectionChanged: (s) => setState(() => _priority = s.first),
             ),
             const SizedBox(height: 32),
             FilledButton(
@@ -177,8 +175,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
               child: _busy
                   ? const SizedBox.square(
                       dimension: 20,
-                      child:
-                          CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(_isEdit ? 'Save' : 'Create'),
             ),
@@ -188,4 +185,3 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     );
   }
 }
-

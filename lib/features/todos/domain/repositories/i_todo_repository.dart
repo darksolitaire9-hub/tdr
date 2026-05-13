@@ -16,4 +16,3 @@ abstract interface class ITodoRepository {
   Future<void> recordTaskText(String text);
   Future<List<String>> getFrequentTaskTexts({int minCount = 3});
 }
-
