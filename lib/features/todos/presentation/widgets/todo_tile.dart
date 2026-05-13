@@ -94,8 +94,8 @@ class _TodoTileState extends ConsumerState<TodoTile> {
       AppColors.stickerGreen,
       AppColors.stickerPurple,
     ];
-    // Deterministic color based on id hash
-    final stickerColor = stickerColors[todo.id.hashCode % stickerColors.length];
+    // Color chosen by user, default to 0
+    final stickerColor = stickerColors[todo.colorIndex % stickerColors.length];
 
     // Dynamic font size: short tasks are loud/big, long tasks are detailed/small.
     final double fontSize = todo.title.length < 15 ? 32 : 18;
@@ -184,7 +184,7 @@ class _TodoTileState extends ConsumerState<TodoTile> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    constraints: const BoxConstraints(maxWidth: 250),
+                    constraints: BoxConstraints(maxWidth: todo.width),
                     decoration: BoxDecoration(
                       color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
                       boxShadow: [
@@ -246,39 +246,91 @@ class _TodoTileState extends ConsumerState<TodoTile> {
                   ),
                   Positioned(
                     top: -48,
-                    right: 0,
+                    right: -100, // Extend a bit for the color dots
                     child: Material(
                       elevation: 4,
                       borderRadius: BorderRadius.circular(8),
                       color: Theme.of(context).colorScheme.surface,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, size: 20),
-                            onPressed: () {
-                              setState(() => _isEditing = true);
-                              _focusNode.requestFocus();
-                              HapticFeedback.lightImpact();
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.check, size: 20),
-                            onPressed: () {
-                              ref.read(todoActionsProvider.notifier).toggle(todo.id);
-                              HapticFeedback.mediumImpact();
-                              AudioService.play(AudioEffect.check);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
-                            onPressed: () {
-                              ref.read(todoActionsProvider.notifier).delete(todo.id);
-                              HapticFeedback.heavyImpact();
-                              AudioService.play(AudioEffect.delete);
-                            },
-                          ),
-                        ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ...List.generate(stickerColors.length, (idx) {
+                              return GestureDetector(
+                                onTap: () {
+                                  ref.read(todoActionsProvider.notifier).update(todo.copyWith(colorIndex: idx));
+                                  HapticFeedback.selectionClick();
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: stickerColors[idx],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: todo.colorIndex == idx ? Colors.black54 : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                            const VerticalDivider(width: 8, thickness: 1, indent: 8, endIndent: 8),
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32),
+                              onPressed: () {
+                                setState(() => _isEditing = true);
+                                _focusNode.requestFocus();
+                                HapticFeedback.lightImpact();
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.check, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32),
+                              onPressed: () {
+                                ref.read(todoActionsProvider.notifier).toggle(todo.id);
+                                HapticFeedback.mediumImpact();
+                                AudioService.play(AudioEffect.check);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32),
+                              onPressed: () {
+                                ref.read(todoActionsProvider.notifier).delete(todo.id);
+                                HapticFeedback.heavyImpact();
+                                AudioService.play(AudioEffect.delete);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Resize Handle
+                  Positioned(
+                    bottom: -8,
+                    right: -8,
+                    child: GestureDetector(
+                      onPanUpdate: (details) {
+                        // Prevent the canvas or the drag listener from firing
+                        final newWidth = (todo.width + details.delta.dx).clamp(100.0, 500.0);
+                        ref.read(todoActionsProvider.notifier).update(todo.copyWith(width: newWidth));
+                      },
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.blueAccent, width: 2),
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                   ),
