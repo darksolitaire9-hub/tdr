@@ -22,6 +22,16 @@ class _TodoTileState extends ConsumerState<TodoTile> {
   late TextEditingController _textCtrl;
   final _focusNode = FocusNode();
 
+  // Local interaction state for 60fps performance
+  bool _isInteracting = false;
+  bool _isResizing = false;
+  double _localX = 0;
+  double _localY = 0;
+  double _localRotation = 0;
+  double _localWidth = 250;
+  double _baseRotation = 0;
+  double _baseWidth = 250;
+
   @override
   void initState() {
     super.initState();
@@ -61,7 +71,6 @@ class _TodoTileState extends ConsumerState<TodoTile> {
     final selectedId = ref.watch(selectedTodoIdProvider);
     final isDragging = draggingId == todo.id;
     final isSelected = selectedId == todo.id;
-    final dragOffset = isDragging ? ref.watch(dragOffsetProvider) : Offset.zero;
     final snapState = ref.watch(snapDisplacementProvider);
 
     // Haptic feedback when snapping engages
@@ -78,10 +87,13 @@ class _TodoTileState extends ConsumerState<TodoTile> {
       }
     });
 
-    // The live position is the stored DB position + active drag delta + snap offset (if any)
     final activeSnapOffset = (isDragging && snapState.isSnapped) ? snapState.offset : Offset.zero;
-    final x = todo.posX + dragOffset.dx + activeSnapOffset.dx;
-    final y = todo.posY + dragOffset.dy + activeSnapOffset.dy;
+
+    // Use local state for high-performance rendering during gestures
+    final x = _isInteracting ? _localX + activeSnapOffset.dx : todo.posX;
+    final y = _isInteracting ? _localY + activeSnapOffset.dy : todo.posY;
+    final rotation = _isInteracting ? _localRotation : todo.rotation;
+    final width = (_isInteracting || _isResizing) ? _localWidth : todo.width;
 
     // Visual scale up for dragging or selected
     final scale = isDragging ? 1.05 : (isSelected ? 1.02 : 1.0);
@@ -94,10 +106,8 @@ class _TodoTileState extends ConsumerState<TodoTile> {
       AppColors.stickerGreen,
       AppColors.stickerPurple,
     ];
-    // Color chosen by user, default to 0
     final stickerColor = stickerColors[todo.colorIndex % stickerColors.length];
 
-    // Dynamic font size: short tasks are loud/big, long tasks are detailed/small.
     final double fontSize = todo.title.length < 15 ? 32 : 18;
     final font = todo.title.length < 20
         ? GoogleFonts.spaceGrotesk(
@@ -109,137 +119,151 @@ class _TodoTileState extends ConsumerState<TodoTile> {
       left: x,
       top: y,
       child: Transform.rotate(
-        angle: todo.rotation,
+        angle: rotation,
         child: AnimatedScale(
           scale: scale,
           duration: const Duration(milliseconds: 100),
           curve: Curves.easeOutBack,
-          child: Listener(
-            onPointerDown: (event) async {
-              if (_isEditing) return; // Don't interrupt editing
+          child: GestureDetector(
+            onTap: () {
+              if (!isSelected) {
+                ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+                HapticFeedback.selectionClick();
+              }
+            },
+            onDoubleTap: () {
+              if (!isSelected) {
+                ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+              }
+              setState(() => _isEditing = true);
+              _focusNode.requestFocus();
+              HapticFeedback.lightImpact();
+            },
+            onLongPress: () {
+              if (_isEditing) return;
+              ref.read(todoActionsProvider.notifier).delete(todo.id);
+              HapticFeedback.heavyImpact();
+              AudioService.play(AudioEffect.delete);
+            },
+            onScaleStart: (details) async {
+              if (_isEditing) return;
+              setState(() {
+                _isInteracting = true;
+                _localX = todo.posX;
+                _localY = todo.posY;
+                _localRotation = todo.rotation;
+                _localWidth = todo.width;
+                _baseRotation = todo.rotation;
+                _baseWidth = todo.width;
+              });
+
               ref.read(draggingTodoIdProvider.notifier).set(todo.id);
-              ref.read(dragOffsetProvider.notifier).set(Offset.zero);
               
-              // Only trigger haptic if not already selected
               if (!isSelected) {
                 ref.read(selectedTodoIdProvider.notifier).set(todo.id);
                 HapticFeedback.selectionClick();
               }
               
-              // Ensure spatial grid is ready for collision checks
               final positions = await ref.read(allTodoPositionsProvider.future);
               ref.read(spatialGridProvider.notifier).rebuild(positions);
             },
-            onPointerMove: (event) async {
-              if (isDragging && !_isEditing) {
-                final current = ref.read(dragOffsetProvider);
-                final newOffset = current + event.delta;
-                ref.read(dragOffsetProvider.notifier).set(newOffset);
-
-                // Magnetic Snapping
-                final allPos = await ref.read(allTodoPositionsProvider.future);
-                final grid = ref.read(spatialGridProvider);
-                final livePos = Offset(todo.posX + newOffset.dx, todo.posY + newOffset.dy);
+            onScaleUpdate: (details) {
+              if (!_isInteracting || _isEditing) return;
+              
+              setState(() {
+                _localX += details.focalPointDelta.dx;
+                _localY += details.focalPointDelta.dy;
                 
-                ref.read(snapDisplacementProvider.notifier).calculateSnap(
-                  todo.id, livePos, allPos, grid
-                );
-              }
-            },
-            onPointerUp: (event) {
-              if (isDragging && !_isEditing) {
-                // Brick Alignment: Snap final position to 20px grid
-                final snappedX = (x / 20).round() * 20.0;
-                final snappedY = (y / 20).round() * 20.0;
+                if (details.rotation != 0.0) {
+                  _localRotation = _baseRotation + details.rotation;
+                }
+                if (details.scale != 1.0) {
+                  _localWidth = (_baseWidth * details.scale).clamp(100.0, 800.0);
+                }
+              });
 
-                ref.read(todoActionsProvider.notifier).updatePosition(todo.id, snappedX, snappedY);
-
-                ref.read(draggingTodoIdProvider.notifier).set(null);
-                ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-                ref.read(snapDisplacementProvider.notifier).clear();
-                
-                HapticFeedback.lightImpact();
-                AudioService.play(AudioEffect.select);
-              }
+              final allPos = ref.read(allTodoPositionsProvider).valueOrNull ?? {};
+              final grid = ref.read(spatialGridProvider);
+              final livePos = Offset(_localX, _localY);
+              
+              ref.read(snapDisplacementProvider.notifier).calculateSnap(
+                todo.id, livePos, allPos, grid
+              );
             },
-            onPointerCancel: (event) {
-              if (!_isEditing) {
-                ref.read(draggingTodoIdProvider.notifier).set(null);
-                ref.read(dragOffsetProvider.notifier).set(Offset.zero);
-                ref.read(snapDisplacementProvider.notifier).clear();
-              }
+            onScaleEnd: (details) {
+              if (!_isInteracting) return;
+              setState(() => _isInteracting = false);
+              
+              final activeSnap = ref.read(snapDisplacementProvider);
+              final snapOffset = activeSnap.isSnapped ? activeSnap.offset : Offset.zero;
+
+              // Brick Alignment: Snap final position to 20px grid
+              final finalX = _localX + snapOffset.dx;
+              final finalY = _localY + snapOffset.dy;
+              final snappedX = (finalX / 20).round() * 20.0;
+              final snappedY = (finalY / 20).round() * 20.0;
+
+              ref.read(todoActionsProvider.notifier).update(todo.copyWith(
+                posX: snappedX,
+                posY: snappedY,
+                rotation: _localRotation,
+                width: _localWidth,
+              ));
+
+              ref.read(draggingTodoIdProvider.notifier).set(null);
+              ref.read(snapDisplacementProvider.notifier).clear();
+              
+              HapticFeedback.lightImpact();
+              AudioService.play(AudioEffect.select);
             },
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                GestureDetector(
-                  onTap: () {
-                    // Consume tap to prevent canvas from clearing selection
-                    if (!isSelected) {
-                      ref.read(selectedTodoIdProvider.notifier).set(todo.id);
-                      HapticFeedback.selectionClick();
-                    }
-                  },
-                  onDoubleTap: () {
-                    if (!isSelected) {
-                      ref.read(selectedTodoIdProvider.notifier).set(todo.id);
-                    }
-                    setState(() => _isEditing = true);
-                    _focusNode.requestFocus();
-                    HapticFeedback.lightImpact();
-                  },
-                  onLongPress: () {
-                    if (_isEditing) return;
-                    ref.read(todoActionsProvider.notifier).delete(todo.id);
-                    HapticFeedback.heavyImpact();
-                    AudioService.play(AudioEffect.delete);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    constraints: BoxConstraints(maxWidth: todo.width),
-                    decoration: BoxDecoration(
-                      color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDragging ? 0.3 : 0.1),
-                          blurRadius: isDragging ? 12 : 4,
-                          offset: isDragging ? const Offset(8, 8) : const Offset(2, 2),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        _isEditing
-                            ? TextField(
-                                controller: _textCtrl,
-                                focusNode: _focusNode,
-                                style: font.copyWith(fontSize: fontSize),
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                maxLines: null,
-                                onSubmitted: (_) => _saveEdit(),
-                                onEditingComplete: _saveEdit,
-                                onTapOutside: (_) => _saveEdit(),
-                              )
-                            : Text(
-                                todo.title,
-                                style: font.copyWith(fontSize: fontSize),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  constraints: BoxConstraints(maxWidth: width),
+                  decoration: BoxDecoration(
+                    color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDragging ? 0.3 : 0.1),
+                        blurRadius: isDragging ? 12 : 4,
+                        offset: isDragging ? const Offset(8, 8) : const Offset(2, 2),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      _isEditing
+                          ? TextField(
+                              controller: _textCtrl,
+                              focusNode: _focusNode,
+                              style: font.copyWith(fontSize: fontSize),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
                               ),
-                        if (todo.isCompleted && !_isEditing)
-                          Positioned.fill(
-                            child: Center(
-                              child: Container(
-                                height: 4,
-                                width: double.infinity,
-                                color: Colors.redAccent.withValues(alpha: 0.6),
-                              ),
+                              maxLines: null,
+                              onSubmitted: (_) => _saveEdit(),
+                              onEditingComplete: _saveEdit,
+                              onTapOutside: (_) => _saveEdit(),
+                            )
+                          : Text(
+                              todo.title,
+                              style: font.copyWith(fontSize: fontSize),
+                            ),
+                      if (todo.isCompleted && !_isEditing)
+                        Positioned.fill(
+                          child: Center(
+                            child: Container(
+                              height: 4,
+                              width: double.infinity,
+                              color: Colors.redAccent.withValues(alpha: 0.6),
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
                 if (isSelected && !_isEditing) ...[
@@ -330,10 +354,20 @@ class _TodoTileState extends ConsumerState<TodoTile> {
                     bottom: -8,
                     right: -8,
                     child: GestureDetector(
+                      onPanStart: (_) {
+                        setState(() {
+                          _isResizing = true;
+                          _localWidth = todo.width;
+                        });
+                      },
                       onPanUpdate: (details) {
-                        // Prevent the canvas or the drag listener from firing
-                        final newWidth = (todo.width + details.delta.dx).clamp(100.0, 500.0);
-                        ref.read(todoActionsProvider.notifier).update(todo.copyWith(width: newWidth));
+                        setState(() {
+                          _localWidth = (_localWidth + details.delta.dx).clamp(100.0, 500.0);
+                        });
+                      },
+                      onPanEnd: (_) {
+                        setState(() => _isResizing = false);
+                        ref.read(todoActionsProvider.notifier).update(todo.copyWith(width: _localWidth));
                       },
                       child: Container(
                         width: 16,
