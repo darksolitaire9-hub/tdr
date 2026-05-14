@@ -1,6 +1,6 @@
 # Software Design Document — Moodboard Todo App
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Date:** 2026-05-13  
 **Platform:** Android (Flutter 3.24, Dart 3.3)
 
@@ -10,7 +10,7 @@
 
 Single-platform Android todo app. **Infinite Moodboard Canvas**: all data persists locally in SQLite. 
 Unlike standard list-based apps, this is a spatial, tactile environment for thoughts and tasks.
-Tasks are "stickers" on an infinite canvas, supporting free-form positioning and rotation.
+Tasks are "stickers" on an infinite canvas, supporting free-form positioning, rotation, and dynamic resizing.
 
 ---
 
@@ -86,8 +86,11 @@ Todo {
 | `pos_x` | REAL | DEFAULT 0.0 |
 | `pos_y` | REAL | DEFAULT 0.0 |
 | `rotation` | REAL | DEFAULT 0.0 |
+| `width` | REAL | DEFAULT 250.0 |
+| `height` | REAL | NULLABLE |
+| `color_index` | INTEGER | DEFAULT 0 |
 
-**Schema version:** 3.
+**Schema version:** 4.
 
 ---
 
@@ -118,9 +121,14 @@ ProviderScope
 
 **Interaction Pattern (Selection Paradigm):**
 - **The Pen Tool:** A Floating Action Button opens a bottom sheet for NLP-driven task creation, reclaiming 100% of the canvas.
-- **Selection State:** Tapping a sticker selects it ($O(1)$ operation), revealing a dashed bounding box and a floating mini-toolbar. Tapping the canvas clears selection.
+- **Selection State:** Tapping a sticker selects it ($O(1)$ operation), revealing a dashed bounding box and a floating mini-toolbar. The sticker consumes the tap to prevent the canvas from clearing selection.
 - **Inline Editing:** Selecting a sticker and tapping "Edit" (or double-tapping) seamlessly swaps the text for an inline `TextField`, keeping the user in context.
-- **Magnetic Snapping:** Dragging a sticker close to another snaps it into axial alignment (Figma-style smart guides).
+- **Unified Gestures:** `GestureDetector.onScaleUpdate` provides a unified 60fps interaction model.
+    - **1-Finger Pan:** Moves the sticker.
+    - **2-Finger Pinch:** Resizes the sticker width dynamically.
+    - **2-Finger Rotate:** Adjusts the sticker rotation.
+- **Brick Alignment:** Dropping a sticker snaps its position to a strict 20px grid, ensuring perfect alignment and stacking.
+- **Magnetic Snapping:** Interaction triggers axial alignment (Figma-style smart guides) during drag.
 - **Sensory Redundancy:** Interactions trigger visual elevation, audio sliding, and sharp haptic ticks.
 
 ---
@@ -132,6 +140,7 @@ ProviderScope
 | Token | Value | Rationale |
 |-------|-------|-----------|
 | Stickers | Pink, Blue, Yellow, Green, Purple | High-contrast playful palette |
+| Customization | Color Picker | Users can manually override sticker colors via the floating toolbar. |
 | Font (Short) | Space Grotesk (Bold) | Loud, punchy for brief thoughts |
 | Font (Long) | Caveat | Personal, handwritten feel for notes |
 | The Sensory Triad | Visual (Scale/Shadow) + Haptic (Snap/Impact) + Audio | Multisensory redundancy ensures interaction feels "real" and is accessible. |
@@ -147,9 +156,10 @@ Stickers dynamically scale font size based on length. When dragged, the sticker 
 | Concern | Approach |
 |---------|----------|
 | Canvas Performance | `InteractiveViewer` with `TransformationController`. Panning/Scaling locks during drag. |
+| Gesture Performance | **Local State Optimization:** Interaction state (X, Y, Rotation, Width) is managed in `_TodoTileState` memory during gestures. Database writes only occur on drop/end, ensuring 60 FPS. |
 | Snap Detection | **Spatial Hash Grid:** Reduces $O(N^2)$ proximity checks to $O(k)$, maintaining 60 FPS while dragging around hundreds of stickers. |
 | DB reactivity | Drift streams — only changed queries re-emit |
-| State Granularity | `updatePosition` uses debounced or per-drop updates. Temporary snap offsets are handled entirely in memory (`snapDisplacementProvider`). |
+| State Granularity | `updatePosition` uses debounced or per-drop updates. Temporary snap offsets are handled entirely in memory. |
 
 
 ---
