@@ -25,10 +25,11 @@ class _TodoTileState extends ConsumerState<TodoTile> {
   // Local interaction state for 60fps performance
   bool _isInteracting = false;
   bool _isResizing = false;
-  double _localX = 0;
-  double _localY = 0;
-  double _localRotation = 0;
-  double _localWidth = 250;
+  late double _localX;
+  late double _localY;
+  late double _localRotation;
+  late double _localWidth;
+
   double _baseRotation = 0;
   double _baseWidth = 250;
 
@@ -36,6 +37,10 @@ class _TodoTileState extends ConsumerState<TodoTile> {
   void initState() {
     super.initState();
     _textCtrl = TextEditingController(text: widget.todo.title);
+    _localX = widget.todo.posX;
+    _localY = widget.todo.posY;
+    _localRotation = widget.todo.rotation;
+    _localWidth = widget.todo.width;
   }
 
   @override
@@ -43,6 +48,23 @@ class _TodoTileState extends ConsumerState<TodoTile> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.todo.title != widget.todo.title && !_isEditing) {
       _textCtrl.text = widget.todo.title;
+    }
+
+    // Only update local state from the widget if we aren't currently interacting
+    // AND the widget property has fundamentally changed (e.g. from the DB stream).
+    if (!_isInteracting && !_isResizing) {
+      if (oldWidget.todo.posX != widget.todo.posX) {
+        _localX = widget.todo.posX;
+      }
+      if (oldWidget.todo.posY != widget.todo.posY) {
+        _localY = widget.todo.posY;
+      }
+      if (oldWidget.todo.rotation != widget.todo.rotation) {
+        _localRotation = widget.todo.rotation;
+      }
+      if (oldWidget.todo.width != widget.todo.width) {
+        _localWidth = widget.todo.width;
+      }
     }
   }
 
@@ -124,111 +146,124 @@ class _TodoTileState extends ConsumerState<TodoTile> {
           scale: scale,
           duration: const Duration(milliseconds: 100),
           curve: Curves.easeOutBack,
-          child: GestureDetector(
-            onTap: () {
-              if (!isSelected) {
-                ref.read(selectedTodoIdProvider.notifier).set(todo.id);
-                HapticFeedback.selectionClick();
-              }
-            },
-            onDoubleTap: () {
-              if (!isSelected) {
-                ref.read(selectedTodoIdProvider.notifier).set(todo.id);
-              }
-              setState(() => _isEditing = true);
-              _focusNode.requestFocus();
-              HapticFeedback.lightImpact();
-            },
-            onLongPress: () {
-              if (_isEditing) return;
-              ref.read(todoActionsProvider.notifier).delete(todo.id);
-              HapticFeedback.heavyImpact();
-              AudioService.play(AudioEffect.delete);
-            },
-            onScaleStart: (details) async {
-              if (_isEditing) return;
-              setState(() {
-                _isInteracting = true;
-                _localX = todo.posX;
-                _localY = todo.posY;
-                _localRotation = todo.rotation;
-                _localWidth = todo.width;
-                _baseRotation = todo.rotation;
-                _baseWidth = todo.width;
-              });
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // 1. The Sticker itself (Handles Pan/Scale/Rotate)
+              GestureDetector(
+                onTap: () {
+                  if (!isSelected) {
+                    ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+                    HapticFeedback.selectionClick();
+                  }
+                },
+                onDoubleTap: () {
+                  if (!isSelected) {
+                    ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+                  }
+                  setState(() => _isEditing = true);
+                  _focusNode.requestFocus();
+                  HapticFeedback.lightImpact();
+                },
+                onLongPress: () {
+                  if (_isEditing) return;
+                  ref.read(todoActionsProvider.notifier).delete(todo.id);
+                  HapticFeedback.heavyImpact();
+                  AudioService.play(AudioEffect.delete);
+                },
+                onScaleStart: (details) async {
+                  if (_isEditing) return;
+                  setState(() {
+                    _isInteracting = true;
+                    _baseRotation = _localRotation;
+                    _baseWidth = _localWidth;
+                  });
 
-              ref.read(draggingTodoIdProvider.notifier).set(todo.id);
-              
-              if (!isSelected) {
-                ref.read(selectedTodoIdProvider.notifier).set(todo.id);
-                HapticFeedback.selectionClick();
-              }
-              
-              final positions = await ref.read(allTodoPositionsProvider.future);
-              ref.read(spatialGridProvider.notifier).rebuild(positions);
-            },
-            onScaleUpdate: (details) {
-              if (!_isInteracting || _isEditing) return;
-              
-              setState(() {
-                _localX += details.focalPointDelta.dx;
-                _localY += details.focalPointDelta.dy;
-                
-                if (details.rotation != 0.0) {
-                  _localRotation = _baseRotation + details.rotation;
-                }
-                if (details.scale != 1.0) {
-                  _localWidth = (_baseWidth * details.scale).clamp(100.0, 800.0);
-                }
-              });
+                  ref.read(draggingTodoIdProvider.notifier).set(todo.id);
 
-              final allPos = ref.read(allTodoPositionsProvider).valueOrNull ?? {};
-              final grid = ref.read(spatialGridProvider);
-              final livePos = Offset(_localX, _localY);
-              
-              ref.read(snapDisplacementProvider.notifier).calculateSnap(
-                todo.id, livePos, allPos, grid
-              );
-            },
-            onScaleEnd: (details) {
-              if (!_isInteracting) return;
-              setState(() => _isInteracting = false);
-              
-              final activeSnap = ref.read(snapDisplacementProvider);
-              final snapOffset = activeSnap.isSnapped ? activeSnap.offset : Offset.zero;
+                  if (!isSelected) {
+                    ref.read(selectedTodoIdProvider.notifier).set(todo.id);
+                    HapticFeedback.selectionClick();
+                  }
 
-              // Brick Alignment: Snap final position to 20px grid
-              final finalX = _localX + snapOffset.dx;
-              final finalY = _localY + snapOffset.dy;
-              final snappedX = (finalX / 20).round() * 20.0;
-              final snappedY = (finalY / 20).round() * 20.0;
+                  final positions =
+                      await ref.read(allTodoPositionsProvider.future);
+                  ref.read(spatialGridProvider.notifier).rebuild(positions);
+                },
+                onScaleUpdate: (details) {
+                  if (!_isInteracting || _isEditing) return;
 
-              ref.read(todoActionsProvider.notifier).update(todo.copyWith(
-                posX: snappedX,
-                posY: snappedY,
-                rotation: _localRotation,
-                width: _localWidth,
-              ));
+                  setState(() {
+                    _localX += details.focalPointDelta.dx;
+                    _localY += details.focalPointDelta.dy;
 
-              ref.read(draggingTodoIdProvider.notifier).set(null);
-              ref.read(snapDisplacementProvider.notifier).clear();
-              
-              HapticFeedback.lightImpact();
-              AudioService.play(AudioEffect.select);
-            },
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    if (details.rotation != 0.0) {
+                      _localRotation = _baseRotation + details.rotation;
+                    }
+                    if (details.scale != 1.0) {
+                      _localWidth =
+                          (_baseWidth * details.scale).clamp(100.0, 800.0);
+                    }
+                  });
+
+                  final allPos =
+                      ref.read(allTodoPositionsProvider).valueOrNull ?? {};
+                  final grid = ref.read(spatialGridProvider);
+                  final livePos = Offset(_localX, _localY);
+
+                  ref.read(snapDisplacementProvider.notifier).calculateSnap(
+                        todo.id,
+                        livePos,
+                        allPos,
+                        grid,
+                      );
+                },
+                onScaleEnd: (details) {
+                  if (!_isInteracting) return;
+
+                  final activeSnap = ref.read(snapDisplacementProvider);
+                  final snapOffset =
+                      activeSnap.isSnapped ? activeSnap.offset : Offset.zero;
+
+                  // Brick Alignment: Snap final position to 20px grid
+                  final finalX = _localX + snapOffset.dx;
+                  final finalY = _localY + snapOffset.dy;
+                  final snappedX = (finalX / 20).round() * 20.0;
+                  final snappedY = (finalY / 20).round() * 20.0;
+
+                  setState(() {
+                    _isInteracting = false;
+                    _localX = snappedX;
+                    _localY = snappedY;
+                  });
+
+                  ref.read(todoActionsProvider.notifier).update(todo.copyWith(
+                        posX: snappedX,
+                        posY: snappedY,
+                        rotation: _localRotation,
+                        width: _localWidth,
+                      ));
+
+                  ref.read(draggingTodoIdProvider.notifier).set(null);
+                  ref.read(snapDisplacementProvider.notifier).clear();
+
+                  HapticFeedback.lightImpact();
+                  AudioService.play(AudioEffect.select);
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   constraints: BoxConstraints(maxWidth: width),
                   decoration: BoxDecoration(
-                    color: stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
+                    color:
+                        stickerColor.withValues(alpha: isDragging ? 1.0 : 0.9),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDragging ? 0.3 : 0.1),
+                        color: Colors.black
+                            .withValues(alpha: isDragging ? 0.3 : 0.1),
                         blurRadius: isDragging ? 12 : 4,
-                        offset: isDragging ? const Offset(8, 8) : const Offset(2, 2),
+                        offset:
+                            isDragging ? const Offset(8, 8) : const Offset(2, 2),
                       ),
                     ],
                   ),
@@ -266,123 +301,138 @@ class _TodoTileState extends ConsumerState<TodoTile> {
                     ],
                   ),
                 ),
-                if (isSelected && !_isEditing) ...[
-                  Positioned(
-                    top: -4,
-                    bottom: -4,
-                    left: -4,
-                    right: -4,
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.blueAccent, width: 2),
-                        ),
+              ),
+
+              // 2. Bounding Box & Toolbar (Siblings of Sticker)
+              if (isSelected && !_isEditing) ...[
+                Positioned(
+                  top: -4,
+                  bottom: -4,
+                  left: -4,
+                  right: -4,
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blueAccent, width: 2),
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: -48,
-                    right: -100, // Extend a bit for the color dots
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(8),
-                      color: Theme.of(context).colorScheme.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ...List.generate(stickerColors.length, (idx) {
-                              return GestureDetector(
-                                onTap: () {
-                                  ref.read(todoActionsProvider.notifier).update(todo.copyWith(colorIndex: idx));
-                                  HapticFeedback.selectionClick();
-                                },
-                                child: Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: stickerColors[idx],
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: todo.colorIndex == idx ? Colors.black54 : Colors.transparent,
-                                      width: 2,
-                                    ),
+                ),
+                Positioned(
+                  top: -48,
+                  right: -100, // Extend a bit for the color dots
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(8),
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ...List.generate(stickerColors.length, (idx) {
+                            return GestureDetector(
+                              onTap: () {
+                                ref
+                                    .read(todoActionsProvider.notifier)
+                                    .update(todo.copyWith(colorIndex: idx));
+                                HapticFeedback.selectionClick();
+                              },
+                              child: Container(
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: stickerColors[idx],
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: todo.colorIndex == idx
+                                        ? Colors.black54
+                                        : Colors.transparent,
+                                    width: 2,
                                   ),
                                 ),
-                              );
-                            }),
-                            const VerticalDivider(width: 8, thickness: 1, indent: 8, endIndent: 8),
-                            IconButton(
-                              icon: const Icon(Icons.edit, size: 20),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 32),
-                              onPressed: () {
-                                setState(() => _isEditing = true);
-                                _focusNode.requestFocus();
-                                HapticFeedback.lightImpact();
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.check, size: 20),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 32),
-                              onPressed: () {
-                                ref.read(todoActionsProvider.notifier).toggle(todo.id);
-                                HapticFeedback.mediumImpact();
-                                AudioService.play(AudioEffect.check);
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 32),
-                              onPressed: () {
-                                ref.read(todoActionsProvider.notifier).delete(todo.id);
-                                HapticFeedback.heavyImpact();
-                                AudioService.play(AudioEffect.delete);
-                              },
-                            ),
-                          ],
-                        ),
+                              ),
+                            );
+                          }),
+                          const VerticalDivider(
+                              width: 8, thickness: 1, indent: 8, endIndent: 8),
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32),
+                            onPressed: () {
+                              setState(() => _isEditing = true);
+                              _focusNode.requestFocus();
+                              HapticFeedback.lightImpact();
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.check, size: 20),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32),
+                            onPressed: () {
+                              ref
+                                  .read(todoActionsProvider.notifier)
+                                  .toggle(todo.id);
+                              HapticFeedback.mediumImpact();
+                              AudioService.play(AudioEffect.check);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete,
+                                size: 20, color: Colors.redAccent),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32),
+                            onPressed: () {
+                              ref
+                                  .read(todoActionsProvider.notifier)
+                                  .delete(todo.id);
+                              HapticFeedback.heavyImpact();
+                              AudioService.play(AudioEffect.delete);
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  // Resize Handle
-                  Positioned(
-                    bottom: -8,
-                    right: -8,
-                    child: GestureDetector(
-                      onPanStart: (_) {
-                        setState(() {
-                          _isResizing = true;
-                          _localWidth = todo.width;
-                        });
-                      },
-                      onPanUpdate: (details) {
-                        setState(() {
-                          _localWidth = (_localWidth + details.delta.dx).clamp(100.0, 500.0);
-                        });
-                      },
-                      onPanEnd: (_) {
-                        setState(() => _isResizing = false);
-                        ref.read(todoActionsProvider.notifier).update(todo.copyWith(width: _localWidth));
-                      },
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Colors.blueAccent, width: 2),
-                          shape: BoxShape.circle,
-                        ),
+                ),
+                // Resize Handle
+                Positioned(
+                  bottom: -8,
+                  right: -8,
+                  child: GestureDetector(
+                    onPanStart: (_) {
+                      setState(() {
+                        _isResizing = true;
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      setState(() {
+                        _localWidth =
+                            (_localWidth + details.delta.dx).clamp(100.0, 500.0);
+                      });
+                    },
+                    onPanEnd: (_) {
+                      setState(() => _isResizing = false);
+                      ref
+                          .read(todoActionsProvider.notifier)
+                          .update(todo.copyWith(width: _localWidth));
+                    },
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.blueAccent, width: 2),
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
